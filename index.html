@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#1f2623" />
+  <title>Kupalsa Planner</title>
+  <style>
+    :root {
+      --ink: #17201c;
+      --muted: #65716a;
+      --canvas: #eef1ed;
+      --surface: #fafbf9;
+      --line: #dce2dc;
+      --accent: #7f9b8b;
+      --accent-ink: #18372c;
+      --hero-image: url("https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=1800&q=80");
+      --shadow: 0 18px 45px rgba(27, 39, 32, .12);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-width: 320px; background: var(--canvas); color: var(--ink); font: 16px/1.5 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    button, input, textarea { font: inherit; }
+    button { cursor: pointer; }
+    .page { max-width: 1024px; margin: 0 auto; padding: 28px 20px 56px; }
+    .hero { position: relative; min-height: 284px; overflow: hidden; border-radius: 22px; display: flex; align-items: end; isolation: isolate; box-shadow: var(--shadow); background: var(--accent); }
+    .hero::before { content: ""; position: absolute; inset: 0; z-index: -2; background: var(--hero-image) center/cover; }
+    .hero::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(110deg, color-mix(in srgb, var(--accent-ink) 92%, transparent), color-mix(in srgb, var(--accent) 50%, transparent)); }
+    .hero-content { width: 100%; padding: 34px; color: #fff; text-shadow: 0 1px 18px rgba(0,0,0,.32); }
+    .eyebrow { margin: 0 0 10px; font-size: 12px; font-weight: 750; letter-spacing: .14em; text-transform: uppercase; opacity: .84; }
+    h1 { margin: 0; max-width: 720px; font-family: Georgia, "Times New Roman", serif; font-size: clamp(34px, 6vw, 58px); line-height: 1.03; letter-spacing: -.045em; }
+    .created { display: inline-block; margin-top: 16px; font-size: 14px; opacity: .88; }
+    .topbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 28px 0 16px; }
+    .topbar h2 { margin: 0; font-size: 18px; letter-spacing: -.015em; }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .button { border: 1px solid transparent; border-radius: 10px; min-height: 42px; padding: 0 14px; font-weight: 700; color: var(--accent-ink); background: #fff; box-shadow: 0 1px 1px rgba(0,0,0,.03); }
+    .button:hover { filter: brightness(.97); }
+    .button.primary { background: var(--accent); color: #fff; }
+    .button.secondary { border-color: var(--line); background: transparent; color: var(--ink); box-shadow: none; }
+    .plan { display: grid; gap: 12px; }
+    .step { position: relative; display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: start; min-height: 136px; padding: 17px 17px 52px; overflow: hidden; border: 1px solid var(--line); border-radius: 15px; background: var(--surface); transition: transform .15s, box-shadow .15s, border-color .15s, background .2s; }
+    .step:hover { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); box-shadow: 0 9px 22px rgba(24, 55, 44, .06); }
+    .step.dragging { opacity: .42; transform: scale(.99); }
+    .step.completed { background: color-mix(in srgb, var(--surface) 84%, #e8f0e8); border-color: color-mix(in srgb, var(--accent) 38%, var(--line)); }
+    .step.completed .step-body, .step.completed .handle { opacity: .72; }
+    .completion-stroke { position: absolute; inset: 7px 8px 7px 4px; z-index: 3; width: calc(100% - 12px); height: calc(100% - 14px); pointer-events: none; overflow: visible; opacity: 0; transition: opacity .18s ease; }
+    .step.completed .completion-stroke { opacity: .92; }
+    .completion-stroke path { fill: none; stroke: #c9473d; stroke-width: 3.7; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; filter: drop-shadow(0 1px 0 rgba(117, 23, 20, .16)); }
+    .handle { border: 0; background: transparent; color: #9aa49d; padding: 7px 4px; font-size: 19px; cursor: grab; touch-action: none; }
+    .handle:active { cursor: grabbing; }
+    .step-body { min-width: 0; }
+    .step-title { margin: 0; font-size: 17px; line-height: 1.25; letter-spacing: -.015em; outline: none; }
+    .step-title[contenteditable="true"]:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 28%, transparent); border-radius: 4px; }
+    .description { margin: 6px 0 0; color: var(--muted); white-space: pre-wrap; outline: none; }
+    .description[contenteditable="true"]:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); border-radius: 4px; }
+    .meta { position: relative; z-index: 4; display: flex; flex-direction: column; align-items: end; gap: 8px; min-width: 118px; }
+    .due-wrap { position: relative; z-index: 5; display: grid; gap: 3px; padding: 2px; border-radius: 8px; color: var(--muted); background: color-mix(in srgb, var(--surface) 94%, transparent); font-size: 11px; font-weight: 750; letter-spacing: .03em; text-transform: uppercase; }
+    .due { width: 132px; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; color: var(--ink); background: #fff; font-size: 13px; font-weight: 550; text-transform: none; letter-spacing: 0; }
+    .delete { border: 0; padding: 5px; background: transparent; color: #8a948e; }
+    .delete:hover { color: #a63e3e; }
+    .complete-control { position: absolute; right: 17px; bottom: 14px; z-index: 4; display: inline-flex; align-items: center; gap: 8px; min-height: 30px; color: var(--muted); font-size: 12px; font-weight: 750; letter-spacing: .025em; cursor: pointer; user-select: none; }
+    .complete-control input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+    .complete-box { width: 20px; height: 20px; display: grid; place-items: center; border: 1.5px solid #a5b1aa; border-radius: 6px; background: rgba(255,255,255,.78); color: #fff; transition: background .16s, border-color .16s, transform .16s; }
+    .complete-control:hover .complete-box { border-color: var(--accent); transform: translateY(-1px); }
+    .complete-control input:focus-visible + .complete-box { outline: 3px solid color-mix(in srgb, var(--accent) 35%, transparent); outline-offset: 2px; }
+    .complete-control input:checked + .complete-box { border-color: #c9473d; background: #c9473d; }
+    .complete-control input:checked + .complete-box::after { content: "✓"; font-size: 14px; font-weight: 900; line-height: 1; }
+    .step.completed .complete-copy { color: #9a453e; }
+    .empty { padding: 42px 22px; border: 1px dashed #bbc6bd; border-radius: 15px; text-align: center; color: var(--muted); background: rgba(255,255,255,.4); }
+    dialog { width: min(620px, calc(100% - 28px)); border: 0; border-radius: 18px; padding: 0; color: var(--ink); box-shadow: 0 30px 90px rgba(0,0,0,.27); }
+    dialog::backdrop { background: rgba(19, 31, 24, .44); backdrop-filter: blur(3px); }
+    .dialog-body { padding: 25px; }
+    .dialog-body h2 { margin: 0 0 5px; font-size: 23px; letter-spacing: -.03em; }
+    .dialog-body p { margin: 0 0 19px; color: var(--muted); }
+    label { display: grid; gap: 6px; margin: 13px 0; color: var(--muted); font-size: 13px; font-weight: 700; }
+    input, textarea { width: 100%; border: 1px solid var(--line); border-radius: 9px; padding: 10px; background: #fff; color: var(--ink); }
+    textarea { min-height: 86px; resize: vertical; }
+    .palette { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .palette input { padding: 3px; height: 43px; }
+    .dialog-actions { display: flex; justify-content: end; gap: 8px; margin-top: 22px; }
+    .hint { margin: 18px 2px 0; color: var(--muted); font-size: 13px; text-align: center; }
+    @media (max-width: 620px) { .page { padding: 12px 12px 38px; } .hero-content { padding: 25px; } .topbar { align-items: flex-start; flex-direction: column; } .step { grid-template-columns: auto 1fr; } .meta { grid-column: 2; grid-row: 1; } .delete { margin-left: auto; } .complete-control { right: 14px; bottom: 11px; } }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; } }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero" aria-label="Plan header">
+      <div class="hero-content">
+        <p class="eyebrow">Kupalsa Planner</p>
+        <h1 id="goalTitle">Build my focused plan</h1>
+        <span class="created" id="createdAt"></span>
+      </div>
+    </section>
+
+    <div class="topbar">
+      <h2>Steps & actions</h2>
+      <div class="actions">
+        <button class="button secondary" id="editPlan" type="button">Edit plan</button>
+        <button class="button primary" id="addStep" type="button">+ Add step</button>
+      </div>
+    </div>
+    <section id="plan" class="plan" aria-live="polite"></section>
+    <p class="hint">Drag steps by the handle to reorder. Click a title or description to edit. Everything saves in this browser.</p>
+  </main>
+
+  <dialog id="planDialog">
+    <form method="dialog" class="dialog-body" id="planForm">
+      <h2>Configure this focused plan</h2>
+      <p>Use a concrete outcome as the heading. Add an image URL or keep the placeholder until you choose one.</p>
+      <label>Goal heading <input id="goalInput" required maxlength="120" placeholder="e.g. Publish my first video-editing portfolio by 30 September" /></label>
+      <label>Header image URL <input id="imageInput" type="url" placeholder="https://…" /></label>
+      <div class="palette">
+        <label>Accent <input id="accentInput" type="color" value="#7f9b8b" /></label>
+        <label>Dark overlay <input id="inkInput" type="color" value="#18372c" /></label>
+        <label>Page background <input id="canvasInput" type="color" value="#eef1ed" /></label>
+      </div>
+      <div class="dialog-actions">
+        <button class="button secondary" type="button" id="cancelDialog">Cancel</button>
+        <button class="button primary" value="save" type="submit">Save plan</button>
+      </div>
+    </form>
+  </dialog>
+
+  <template id="stepTemplate">
+    <article class="step" draggable="true">
+      <svg class="completion-stroke" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M 2 91 C 25 89, 46 71, 63 49 S 85 20, 99 10" />
+        <path d="M 3 93 C 25 91, 47 73, 64 51 S 86 22, 98 12" opacity=".38" />
+      </svg>
+      <button class="handle" type="button" aria-label="Drag to reorder" title="Drag to reorder">⠿</button>
+      <div class="step-body">
+        <h3 class="step-title" contenteditable="true" spellcheck="true"></h3>
+        <p class="description" contenteditable="true" spellcheck="true"></p>
+      </div>
+      <div class="meta">
+        <label class="due-wrap">Due date <input class="due" type="date" /></label>
+        <button class="delete" type="button" aria-label="Delete step" title="Delete step">Delete</button>
+      </div>
+      <label class="complete-control" title="Mark task complete">
+        <input class="complete" type="checkbox" />
+        <span class="complete-box" aria-hidden="true"></span>
+        <span class="complete-copy">Mark complete</span>
+      </label>
+    </article>
+  </template>
+
+  <script>
+    const key = 'focus-plan-template-v1';
+    const defaults = {
+      goal: 'Build my focused plan',
+      image: 'https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=1800&q=80',
+      accent: '#7f9b8b', ink: '#18372c', canvas: '#eef1ed',
+      createdAt: new Date().toISOString(),
+      steps: [
+        { id: crypto.randomUUID(), title: 'Define the finished outcome', description: 'Write the goal so that success is concrete, visible, and time-bound.', due: '', completed: false },
+        { id: crypto.randomUUID(), title: 'Add the first action', description: 'Choose the smallest meaningful action that moves the plan forward.', due: '', completed: false }
+      ]
+    };
+    let data = JSON.parse(localStorage.getItem(key) || 'null') || defaults;
+    const $ = s => document.querySelector(s);
+    const plan = $('#plan'); const template = $('#stepTemplate'); const dialog = $('#planDialog');
+    const formatDate = iso => new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(iso));
+    function save() { localStorage.setItem(key, JSON.stringify(data)); }
+    function applyTheme() {
+      document.documentElement.style.setProperty('--accent', data.accent);
+      document.documentElement.style.setProperty('--accent-ink', data.ink);
+      document.documentElement.style.setProperty('--canvas', data.canvas);
+      document.documentElement.style.setProperty('--hero-image', `url("${data.image.replaceAll('"', '%22')}")`);
+      $('#goalTitle').textContent = data.goal;
+      $('#createdAt').textContent = `Created ${formatDate(data.createdAt)}`;
+    }
+    function persistFromCard(card) {
+      const id = card.dataset.id; const step = data.steps.find(s => s.id === id); if (!step) return;
+      step.title = card.querySelector('.step-title').textContent.trim() || 'Untitled step';
+      step.description = card.querySelector('.description').textContent.trim();
+      step.due = card.querySelector('.due').value;
+      step.completed = card.querySelector('.complete').checked;
+      save();
+    }
+    function makeCard(step) {
+      const card = template.content.firstElementChild.cloneNode(true); card.dataset.id = step.id;
+      card.classList.toggle('completed', Boolean(step.completed));
+      card.querySelector('.step-title').textContent = step.title;
+      card.querySelector('.description').textContent = step.description;
+      card.querySelector('.due').value = step.due || '';
+      const complete = card.querySelector('.complete');
+      complete.checked = Boolean(step.completed);
+      card.querySelector('.complete-copy').textContent = complete.checked ? 'Completed' : 'Mark complete';
+      card.querySelectorAll('[contenteditable], .due').forEach(el => el.addEventListener('input', () => persistFromCard(card)));
+      complete.addEventListener('change', () => { persistFromCard(card); card.classList.toggle('completed', complete.checked); card.querySelector('.complete-copy').textContent = complete.checked ? 'Completed' : 'Mark complete'; });
+      card.querySelector('.delete').addEventListener('click', () => { data.steps = data.steps.filter(s => s.id !== step.id); save(); render(); });
+      card.addEventListener('dragstart', e => { card.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
+      card.addEventListener('dragend', () => { card.classList.remove('dragging'); reorderFromDOM(); });
+      return card;
+    }
+    function render() {
+      plan.replaceChildren();
+      if (!data.steps.length) { plan.innerHTML = '<div class="empty">No actions yet. Add the first smallest step.</div>'; return; }
+      data.steps.forEach(step => plan.append(makeCard(step)));
+    }
+    function reorderFromDOM() { const ids = [...plan.querySelectorAll('.step')].map(el => el.dataset.id); data.steps.sort((a,b) => ids.indexOf(a.id) - ids.indexOf(b.id)); save(); }
+    plan.addEventListener('dragover', e => {
+      e.preventDefault(); const dragging = plan.querySelector('.dragging'); if (!dragging) return;
+      const others = [...plan.querySelectorAll('.step:not(.dragging)')];
+      const after = others.find(el => e.clientY < el.getBoundingClientRect().top + el.offsetHeight / 2);
+      plan.insertBefore(dragging, after || null);
+    });
+    $('#addStep').addEventListener('click', () => { const step = { id: crypto.randomUUID(), title: 'New action', description: 'Describe the next concrete action.', due: '', completed: false }; data.steps.push(step); save(); render(); requestAnimationFrame(() => plan.lastElementChild?.querySelector('.step-title').focus()); });
+    $('#editPlan').addEventListener('click', () => { $('#goalInput').value=data.goal; $('#imageInput').value=data.image; $('#accentInput').value=data.accent; $('#inkInput').value=data.ink; $('#canvasInput').value=data.canvas; dialog.showModal(); });
+    $('#cancelDialog').addEventListener('click', () => dialog.close());
+    $('#planForm').addEventListener('submit', e => { e.preventDefault(); data.goal=$('#goalInput').value.trim(); data.image=$('#imageInput').value.trim() || defaults.image; data.accent=$('#accentInput').value; data.ink=$('#inkInput').value; data.canvas=$('#canvasInput').value; save(); applyTheme(); dialog.close(); });
+    applyTheme(); render();
+  </script>
+</body>
+</html>
