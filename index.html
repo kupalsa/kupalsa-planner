@@ -95,6 +95,7 @@
     <div class="topbar">
       <h2>Steps & actions</h2>
       <div class="actions">
+        <button class="button secondary" id="planLibrary" type="button">My plans</button>
         <button class="button secondary" id="dataSettings" type="button">Data connection</button>
         <button class="button secondary" id="editPlan" type="button">Edit plan</button>
         <button class="button primary" id="addStep" type="button">+ Add step</button>
@@ -102,6 +103,7 @@
     </div>
     <section id="plan" class="plan" aria-live="polite"></section>
     <p class="hint">Drag steps by the handle to reorder. Click a title or description to edit. Everything saves in this browser.</p>
+    <div class="actions" style="justify-content:center; margin-top:22px"><button class="button secondary" id="deletePlanner" type="button">Delete this planner</button></div>
   </main>
 
   <dialog id="planDialog">
@@ -120,6 +122,18 @@
         <button class="button primary" value="save" type="submit">Save plan</button>
       </div>
     </form>
+  </dialog>
+
+  <dialog id="libraryDialog">
+    <div class="dialog-body">
+      <h2>My planners</h2>
+      <p>Open an existing plan or create a new focused planner. All plan data stays in your private data repository.</p>
+      <div id="planList" class="plan"></div>
+      <div class="dialog-actions">
+        <button class="button secondary" id="newPlanner" type="button">+ New planner</button>
+        <button class="button secondary" id="closeLibrary" type="button">Close</button>
+      </div>
+    </div>
   </dialog>
 
   <dialog id="dataDialog">
@@ -179,7 +193,7 @@
     };
     let data = JSON.parse(localStorage.getItem(key) || 'null') || defaults;
     const $ = s => document.querySelector(s);
-    const plan = $('#plan'); const template = $('#stepTemplate'); const dialog = $('#planDialog'); const dataDialog = $('#dataDialog');
+    const plan = $('#plan'); const template = $('#stepTemplate'); const dialog = $('#planDialog'); const dataDialog = $('#dataDialog'); const libraryDialog = $('#libraryDialog');
     const formatDate = iso => new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(iso));
     const getConnection = () => JSON.parse(localStorage.getItem(connectionKey) || 'null');
     const planPath = config => `data/plans/${config.planId}.json`;
@@ -208,6 +222,10 @@
       return result;
     }
     async function loadRemotePlan() { const config = getConnection(); if (!config?.token) return; try { data = await fetchRemotePlan(config); localStorage.setItem(key, JSON.stringify(data)); applyTheme(); render(); } catch (error) { console.warn('Private data load skipped:', error); } }
+    async function getPlanIndex(config) { const file = await githubRequest(config, 'data/plans.json'); return { sha: file.sha, index: JSON.parse(base64ToText(file.content)) }; }
+    async function putPlanIndex(config, index, sha) { await githubRequest(config, 'data/plans.json', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'Update planner index', content: bytesToBase64(JSON.stringify(index, null, 2)), sha }) }); }
+    async function renderLibrary() { const config = getConnection(); const list = $('#planList'); if (!config?.token) { list.innerHTML = '<div class="empty">Connect your private data repository first.</div>'; return; } list.innerHTML = '<div class="empty">Loading your planners…</div>'; try { const { index } = await getPlanIndex(config); list.replaceChildren(); index.plans.forEach(entry => { const button = document.createElement('button'); button.className = 'button secondary'; button.style.textAlign = 'left'; button.textContent = entry.title; button.addEventListener('click', async () => { config.planId = entry.id; localStorage.setItem(connectionKey, JSON.stringify(config)); remoteSha = null; await loadRemotePlan(); libraryDialog.close(); }); list.append(button); }); } catch (error) { list.innerHTML = `<div class="empty">Could not load plans: ${error.message}</div>`; } }
+    async function deleteCurrentPlanner() { const config = getConnection(); if (!config?.token) return alert('Connect your private data repository before deleting a planner.'); if (!confirm(`Delete “${data.goal}”? This permanently removes its private plan data.`)) return; try { const { sha, index } = await getPlanIndex(config); const file = await githubRequest(config, planPath(config)); await githubRequest(config, planPath(config), { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: `Delete ${config.planId} plan`, sha: file.sha }) }); index.plans = index.plans.filter(entry => entry.id !== config.planId); await putPlanIndex(config, index, sha); data = structuredClone(defaults); remoteSha = null; localStorage.removeItem(connectionKey); save(); applyTheme(); render(); alert('Planner deleted. Create or open another plan from My plans.'); } catch (error) { alert(`Could not delete this planner: ${error.message}`); } }
     function applyTheme() {
       document.documentElement.style.setProperty('--accent', data.accent);
       document.documentElement.style.setProperty('--accent-ink', data.ink);
@@ -256,6 +274,10 @@
     $('#editPlan').addEventListener('click', () => { $('#goalInput').value=data.goal; $('#imageInput').value=data.image; $('#accentInput').value=data.accent; $('#inkInput').value=data.ink; $('#canvasInput').value=data.canvas; dialog.showModal(); });
     $('#cancelDialog').addEventListener('click', () => dialog.close());
     $('#planForm').addEventListener('submit', e => { e.preventDefault(); data.goal=$('#goalInput').value.trim(); data.image=$('#imageInput').value.trim() || defaults.image; data.accent=$('#accentInput').value; data.ink=$('#inkInput').value; data.canvas=$('#canvasInput').value; save(); applyTheme(); dialog.close(); });
+    $('#planLibrary').addEventListener('click', () => { libraryDialog.showModal(); renderLibrary(); });
+    $('#closeLibrary').addEventListener('click', () => libraryDialog.close());
+    $('#newPlanner').addEventListener('click', async () => { const config = getConnection(); if (!config?.token) return alert('Connect your private data repository first.'); const title = prompt('What is this planner’s precise goal?'); if (!title?.trim()) return; const id = prompt('Plan ID (lowercase words separated by hyphens):', title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')); if (!id || !/^[a-z0-9-]+$/.test(id)) return alert('Use lowercase letters, numbers, and hyphens only.'); try { const { sha, index } = await getPlanIndex(config); const next = structuredClone(defaults); next.id=id; next.goal=title.trim(); next.createdAt=new Date().toISOString(); data=next; config.planId=id; remoteSha=null; localStorage.setItem(connectionKey, JSON.stringify(config)); await pushRemotePlan(config); index.plans.push({ id, title: next.goal, path: planPath(config), createdAt: next.createdAt, updatedAt: next.createdAt }); await putPlanIndex(config, index, sha); localStorage.setItem(key, JSON.stringify(data)); applyTheme(); render(); libraryDialog.close(); } catch (error) { alert(`Could not create planner: ${error.message}`); } });
+    $('#deletePlanner').addEventListener('click', deleteCurrentPlanner);
     $('#dataSettings').addEventListener('click', () => { const config = getConnection() || { user: 'kupalsa', repo: 'Kupalsa-Planner-Data', planId: 'starter-plan', token: '' }; $('#githubUserInput').value = config.user || ''; $('#githubRepoInput').value = config.repo || ''; $('#planIdInput').value = config.planId || ''; $('#githubTokenInput').value = config.token || ''; $('#connectionMessage').textContent = 'Token scope: this data repo only → Contents: Read and write.'; dataDialog.showModal(); });
     $('#cancelDataDialog').addEventListener('click', () => dataDialog.close());
     $('#testConnection').addEventListener('click', async () => { const config = { user: $('#githubUserInput').value.trim(), repo: $('#githubRepoInput').value.trim(), planId: $('#planIdInput').value.trim(), token: $('#githubTokenInput').value.trim() }; const message = $('#connectionMessage'); message.textContent = 'Testing connection…'; try { await githubRequest(config); message.textContent = 'Connected successfully. Your private data repository is available.'; } catch (error) { message.textContent = `Connection failed: ${error.message}`; } });
