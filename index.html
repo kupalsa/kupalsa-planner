@@ -39,20 +39,15 @@
     .plan { display: grid; gap: 12px; }
     .step { position: relative; display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: start; min-height: 136px; padding: 17px 17px 52px; overflow: hidden; border: 1px solid var(--line); border-radius: 15px; background: var(--surface); transition: transform .15s, box-shadow .15s, border-color .15s, background .2s; }
     .step:hover { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); box-shadow: 0 9px 22px rgba(24, 55, 44, .06); }
-    .step.dragging { opacity: .82; transform: translateY(-3px) scale(1.01); border-color: var(--accent); box-shadow: 0 18px 34px rgba(24, 55, 44, .20); animation: card-lift .52s ease-in-out infinite alternate; }
-    .step.dragging .handle { color: var(--accent-ink); }
-    .drop-indicator { height: 12px; position: relative; margin: -2px 8px; pointer-events: none; }
-    .drop-indicator::before { content: ""; position: absolute; inset: 50% 0 auto; height: 3px; border-radius: 999px; background: var(--accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent); transform: scaleX(.1); transform-origin: left; animation: drop-line-in .16s ease-out forwards; }
-    .drop-indicator::after { content: "Drop here"; position: absolute; right: 0; top: calc(50% - 15px); padding: 1px 7px; border-radius: 99px; color: var(--accent-ink); background: var(--canvas); font-size: 10px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
-    @keyframes card-lift { to { transform: translateY(-6px) scale(1.012); } }
-    @keyframes drop-line-in { to { transform: scaleX(1); } }
+    .move-controls { display: grid; gap: 3px; align-self: start; }
+    .move-control { width: 30px; height: 30px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 8px; padding: 0; color: var(--muted); background: transparent; font-size: 16px; line-height: 1; }
+    .move-control:hover:not(:disabled), .move-control:focus-visible:not(:disabled) { border-color: var(--accent); color: var(--accent-ink); background: #fff; }
+    .move-control:disabled { opacity: .3; cursor: not-allowed; }
     .step.completed { background: color-mix(in srgb, var(--surface) 84%, #e8f0e8); border-color: color-mix(in srgb, var(--accent) 38%, var(--line)); }
-    .step.completed .step-body, .step.completed .handle { opacity: .72; }
+    .step.completed .step-body, .step.completed .move-controls { opacity: .72; }
     .completion-stroke { position: absolute; inset: 7px 8px 7px 4px; z-index: 3; width: calc(100% - 12px); height: calc(100% - 14px); pointer-events: none; overflow: visible; opacity: 0; transition: opacity .18s ease; }
     .step.completed .completion-stroke { opacity: .92; }
     .completion-stroke path { fill: none; stroke: #c9473d; stroke-width: 3.7; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; filter: drop-shadow(0 1px 0 rgba(117, 23, 20, .16)); }
-    .handle { border: 0; background: transparent; color: #9aa49d; padding: 7px 4px; font-size: 19px; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
-    .handle:active { cursor: grabbing; }
     .step-actions { display: flex; justify-content: end; align-items: center; gap: 4px; }
     .edit, .delete { width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid transparent; border-radius: 8px; padding: 0; background: transparent; color: #718078; font-size: 19px; line-height: 1; }
     .edit:hover, .edit:focus-visible { border-color: var(--line); color: var(--accent-ink); background: #fff; }
@@ -95,8 +90,8 @@
       .hero-content { padding: 25px; }
       .topbar { align-items: flex-start; flex-direction: column; }
       /* Read top-to-bottom on a phone: task first, deadline/actions second, completion last. */
-      .step { grid-template-columns: 28px minmax(0, 1fr); grid-template-areas: "handle body" ". meta" ". complete"; gap: 12px; min-height: 0; padding: 16px; }
-      .handle { grid-area: handle; align-self: start; padding: 4px 2px; }
+      .step { grid-template-columns: 34px minmax(0, 1fr); grid-template-areas: "moves body" ". meta" ". complete"; gap: 12px; min-height: 0; padding: 16px; }
+      .move-controls { grid-area: moves; align-self: start; }
       .step-body { grid-area: body; padding-top: 3px; }
       .meta { grid-area: meta; display: flex; flex-direction: column; align-items: stretch; gap: 7px; min-width: 0; padding-top: 3px; }
       .due-wrap { width: 100%; min-width: 0; }
@@ -132,7 +127,7 @@
       </div>
     </div>
     <section id="plan" class="plan" aria-live="polite"></section>
-    <p class="hint">Drag steps by the handle to reorder. Click a title or description to edit. Everything saves in this browser.</p>
+    <p class="hint">Use the arrows to move a step one position at a time. Tap ✎ to edit; changes stay locked until then.</p>
     <div class="actions" style="justify-content:center; margin-top:22px"><button class="button secondary" id="deletePlanner" type="button">Delete this planner</button></div>
   </main>
 
@@ -184,12 +179,15 @@
   </dialog>
 
   <template id="stepTemplate">
-    <article class="step" draggable="false">
+    <article class="step">
       <svg class="completion-stroke" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
         <path d="M 2 91 C 25 89, 46 71, 63 49 S 85 20, 99 10" />
         <path d="M 3 93 C 25 91, 47 73, 64 51 S 86 22, 98 12" opacity=".38" />
       </svg>
-      <button class="handle" type="button" aria-label="Drag to reorder" title="Drag to reorder">⠿</button>
+      <div class="move-controls" aria-label="Move step">
+        <button class="move-control move-up" type="button" aria-label="Move step up" title="Move step up">↑</button>
+        <button class="move-control move-down" type="button" aria-label="Move step down" title="Move step down">↓</button>
+      </div>
       <div class="step-body">
         <h3 class="step-title" contenteditable="false" spellcheck="true"></h3>
         <p class="description" contenteditable="false" spellcheck="true"></p>
@@ -289,18 +287,11 @@
       editButton.textContent = '✎'; editButton.setAttribute('aria-label', 'Edit step'); editButton.title = 'Edit step';
       deleteButton.textContent = '⌫'; deleteButton.setAttribute('aria-label', 'Delete step'); deleteButton.title = 'Delete step';
     }
-    function haptic(milliseconds = 12) { if (typeof navigator.vibrate === 'function') navigator.vibrate(milliseconds); }
-    function updateDropIndicator(card, clientX, clientY) {
-      const indicator = plan.querySelector('.drop-indicator') || Object.assign(document.createElement('div'), { className: 'drop-indicator' });
-      const steps = [...plan.querySelectorAll('.step')].filter(step => step !== card);
-      const target = document.elementFromPoint(clientX, clientY)?.closest('.step'); let reference = null;
-      if (target && target !== card && plan.contains(target)) { const rect = target.getBoundingClientRect(); reference = clientY < rect.top + rect.height / 2 ? target : target.nextElementSibling; }
-      else if (steps.length && clientY < steps[0].getBoundingClientRect().top) reference = steps[0];
-      else if (steps.length && clientY > steps.at(-1).getBoundingClientRect().bottom) reference = null;
-      else return false;
-      if (reference === card || reference === card.nextElementSibling) { indicator.remove(); return false; }
-      const targetKey = reference?.dataset.id || 'end'; if (indicator.parentNode && indicator.dataset.targetKey === targetKey) return false;
-      indicator.remove(); indicator.dataset.targetKey = targetKey; plan.insertBefore(indicator, reference); return true;
+    function moveStep(stepId, direction) {
+      const from = data.steps.findIndex(step => step.id === stepId); const to = from + direction;
+      if (from < 0 || to < 0 || to >= data.steps.length) return;
+      [data.steps[from], data.steps[to]] = [data.steps[to], data.steps[from]]; save(); render();
+      requestAnimationFrame(() => plan.querySelector(`[data-id="${stepId}"] .move-control`)?.focus());
     }
     function makeCard(step) {
       const card = template.content.firstElementChild.cloneNode(true); card.dataset.id = step.id;
@@ -315,11 +306,9 @@
       complete.addEventListener('change', () => { persistFromCard(card); card.classList.toggle('completed', complete.checked); card.querySelector('.complete-copy').textContent = complete.checked ? 'Completed' : 'Mark complete'; });
       card.querySelector('.edit').addEventListener('click', () => setEditing(card, !card.classList.contains('editing')));
       card.querySelector('.delete').addEventListener('click', () => { if (card.classList.contains('editing')) return setEditing(card, false, false); if (confirm(`Delete “${step.title}”?`)) { data.steps = data.steps.filter(s => s.id !== step.id); save(); render(); } });
-      const handle = card.querySelector('.handle'); let activePointerId = null; let dragStarted = false; let startX = 0; let startY = 0;
-      handle.addEventListener('pointerdown', event => { event.preventDefault(); activePointerId = event.pointerId; startX = event.clientX; startY = event.clientY; dragStarted = false; handle.setPointerCapture(activePointerId); haptic(20); });
-      handle.addEventListener('pointermove', event => { if (event.pointerId !== activePointerId) return; event.preventDefault(); if (!dragStarted && Math.hypot(event.clientX - startX, event.clientY - startY) < 9) return; if (!dragStarted) { dragStarted = true; card.classList.add('dragging'); } if (updateDropIndicator(card, event.clientX, event.clientY)) haptic(10); });
-      const finishPointerDrag = event => { if (event.pointerId !== activePointerId) return; const indicator = plan.querySelector('.drop-indicator'); if (dragStarted) { if (indicator) { plan.insertBefore(card, indicator); indicator.remove(); } card.classList.remove('dragging'); reorderFromDOM(); haptic([16, 30, 24]); } if (indicator) indicator.remove(); if (handle.hasPointerCapture(activePointerId)) handle.releasePointerCapture(activePointerId); activePointerId = null; dragStarted = false; };
-      handle.addEventListener('pointerup', finishPointerDrag); handle.addEventListener('pointercancel', finishPointerDrag);
+      const index = data.steps.findIndex(item => item.id === step.id); const up = card.querySelector('.move-up'); const down = card.querySelector('.move-down');
+      up.disabled = index === 0; down.disabled = index === data.steps.length - 1;
+      up.addEventListener('click', () => moveStep(step.id, -1)); down.addEventListener('click', () => moveStep(step.id, 1));
       return card;
     }
     function render() {
@@ -327,7 +316,6 @@
       if (!data.steps.length) { plan.innerHTML = '<div class="empty">No actions yet. Add the first smallest step.</div>'; return; }
       data.steps.forEach(step => plan.append(makeCard(step)));
     }
-    function reorderFromDOM() { const ids = [...plan.querySelectorAll('.step')].map(el => el.dataset.id); data.steps.sort((a,b) => ids.indexOf(a.id) - ids.indexOf(b.id)); save(); }
     $('#addStep').addEventListener('click', () => { const step = { id: crypto.randomUUID(), title: 'New action', description: 'Describe the next concrete action.', due: '', completed: false }; data.steps.push(step); save(); render(); requestAnimationFrame(() => { const card = plan.lastElementChild; if (card) setEditing(card, true); }); });
     $('#editPlan').addEventListener('click', () => { $('#goalInput').value=data.goal; $('#imageInput').value=data.image; $('#accentInput').value=data.accent; $('#inkInput').value=data.ink; $('#canvasInput').value=data.canvas; dialog.showModal(); });
     $('#cancelDialog').addEventListener('click', () => dialog.close());
