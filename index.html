@@ -82,15 +82,20 @@
       .page { padding: 12px 12px 38px; }
       .hero-content { padding: 25px; }
       .topbar { align-items: flex-start; flex-direction: column; }
-      /* Keep the date and delete action in a compact top row; give the task text its own full-width row. */
-      .step { grid-template-columns: 28px minmax(0, 1fr); grid-template-areas: "handle meta" "body body"; gap: 12px; min-height: 0; padding: 16px 16px 56px; }
+      /* Read top-to-bottom on a phone: task first, deadline/actions second, completion last. */
+      .step { grid-template-columns: 28px minmax(0, 1fr); grid-template-areas: "handle body" ". meta" ". complete"; gap: 12px; min-height: 0; padding: 16px; }
       .handle { grid-area: handle; align-self: start; padding: 4px 2px; }
       .step-body { grid-area: body; padding-top: 3px; }
-      .meta { grid-area: meta; display: flex; flex-direction: row; justify-content: flex-end; align-items: end; gap: 8px; min-width: 0; }
-      .due-wrap { min-width: 0; flex: 0 1 148px; }
+      .meta { grid-area: meta; display: flex; flex-direction: row; justify-content: space-between; align-items: end; gap: 10px; min-width: 0; padding-top: 3px; }
+      .due-wrap { min-width: 0; flex: 0 1 236px; }
       .due { width: 100%; min-width: 0; }
       .delete { flex: 0 0 auto; margin: 0 0 1px; }
-      .complete-control { right: 14px; bottom: 11px; }
+      .complete-control { position: static; grid-area: complete; justify-self: end; margin-top: 1px; }
+    }
+    @media (max-width: 380px) {
+      .meta { align-items: flex-start; flex-direction: column; }
+      .due-wrap { width: 100%; flex-basis: auto; }
+      .delete { align-self: end; }
     }
     @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; } }
   </style>
