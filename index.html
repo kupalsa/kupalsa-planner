@@ -78,7 +78,20 @@
     .palette input { padding: 3px; height: 43px; }
     .dialog-actions { display: flex; justify-content: end; gap: 8px; margin-top: 22px; }
     .hint { margin: 18px 2px 0; color: var(--muted); font-size: 13px; text-align: center; }
-    @media (max-width: 620px) { .page { padding: 12px 12px 38px; } .hero-content { padding: 25px; } .topbar { align-items: flex-start; flex-direction: column; } .step { grid-template-columns: auto 1fr; } .meta { grid-column: 2; grid-row: 1; } .delete { margin-left: auto; } .complete-control { right: 14px; bottom: 11px; } }
+    @media (max-width: 620px) {
+      .page { padding: 12px 12px 38px; }
+      .hero-content { padding: 25px; }
+      .topbar { align-items: flex-start; flex-direction: column; }
+      /* Keep the date and delete action in a compact top row; give the task text its own full-width row. */
+      .step { grid-template-columns: 28px minmax(0, 1fr); grid-template-areas: "handle meta" "body body"; gap: 12px; min-height: 0; padding: 16px 16px 56px; }
+      .handle { grid-area: handle; align-self: start; padding: 4px 2px; }
+      .step-body { grid-area: body; padding-top: 3px; }
+      .meta { grid-area: meta; display: flex; flex-direction: row; justify-content: flex-end; align-items: end; gap: 8px; min-width: 0; }
+      .due-wrap { min-width: 0; flex: 0 1 148px; }
+      .due { width: 100%; min-width: 0; }
+      .delete { flex: 0 0 auto; margin: 0 0 1px; }
+      .complete-control { right: 14px; bottom: 11px; }
+    }
     @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; } }
   </style>
 </head>
