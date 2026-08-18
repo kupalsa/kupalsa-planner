@@ -45,8 +45,15 @@
     .completion-stroke { position: absolute; inset: 7px 8px 7px 4px; z-index: 3; width: calc(100% - 12px); height: calc(100% - 14px); pointer-events: none; overflow: visible; opacity: 0; transition: opacity .18s ease; }
     .step.completed .completion-stroke { opacity: .92; }
     .completion-stroke path { fill: none; stroke: #c9473d; stroke-width: 3.7; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; filter: drop-shadow(0 1px 0 rgba(117, 23, 20, .16)); }
-    .handle { border: 0; background: transparent; color: #9aa49d; padding: 7px 4px; font-size: 19px; cursor: grab; touch-action: none; }
+    .handle { border: 0; background: transparent; color: #9aa49d; padding: 7px 4px; font-size: 19px; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
     .handle:active { cursor: grabbing; }
+    .step-actions { display: flex; justify-content: end; align-items: center; gap: 4px; }
+    .edit, .delete { width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid transparent; border-radius: 8px; padding: 0; background: transparent; color: #718078; font-size: 19px; line-height: 1; }
+    .edit:hover, .edit:focus-visible { border-color: var(--line); color: var(--accent-ink); background: #fff; }
+    .delete:hover, .delete:focus-visible { border-color: #edcdca; color: #a63e3e; background: #fff8f7; }
+    .step.editing { border-color: color-mix(in srgb, var(--accent) 70%, var(--line)); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 17%, transparent); }
+    .step:not(.editing) .step-title, .step:not(.editing) .description { cursor: default; }
+    .step.editing .step-title, .step.editing .description { cursor: text; }
     .step-body { min-width: 0; }
     .step-title { margin: 0; font-size: 17px; line-height: 1.25; letter-spacing: -.015em; outline: none; }
     .step-title[contenteditable="true"]:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 28%, transparent); border-radius: 4px; }
@@ -55,8 +62,7 @@
     .meta { position: relative; z-index: 4; display: flex; flex-direction: column; align-items: end; gap: 8px; min-width: 118px; }
     .due-wrap { position: relative; z-index: 5; display: grid; gap: 3px; padding: 2px; border-radius: 8px; color: var(--muted); background: color-mix(in srgb, var(--surface) 94%, transparent); font-size: 11px; font-weight: 750; letter-spacing: .03em; text-transform: uppercase; }
     .due { width: 132px; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; color: var(--ink); background: #fff; font-size: 13px; font-weight: 550; text-transform: none; letter-spacing: 0; }
-    .delete { border: 0; padding: 5px; background: transparent; color: #8a948e; }
-    .delete:hover { color: #a63e3e; }
+    .due:disabled { color: var(--ink); opacity: 1; cursor: default; }
     .complete-control { position: absolute; right: 17px; bottom: 14px; z-index: 4; display: inline-flex; align-items: center; gap: 8px; min-height: 30px; color: var(--muted); font-size: 12px; font-weight: 750; letter-spacing: .025em; cursor: pointer; user-select: none; }
     .complete-control input { position: absolute; width: 1px; height: 1px; opacity: 0; }
     .complete-box { width: 20px; height: 20px; display: grid; place-items: center; border: 1.5px solid #a5b1aa; border-radius: 6px; background: rgba(255,255,255,.78); color: #fff; transition: background .16s, border-color .16s, transform .16s; }
@@ -86,10 +92,10 @@
       .step { grid-template-columns: 28px minmax(0, 1fr); grid-template-areas: "handle body" ". meta" ". complete"; gap: 12px; min-height: 0; padding: 16px; }
       .handle { grid-area: handle; align-self: start; padding: 4px 2px; }
       .step-body { grid-area: body; padding-top: 3px; }
-      .meta { grid-area: meta; display: flex; flex-direction: row; justify-content: space-between; align-items: end; gap: 10px; min-width: 0; padding-top: 3px; }
-      .due-wrap { min-width: 0; flex: 0 1 236px; }
+      .meta { grid-area: meta; display: flex; flex-direction: column; align-items: stretch; gap: 7px; min-width: 0; padding-top: 3px; }
+      .due-wrap { width: 100%; min-width: 0; }
       .due { width: 100%; min-width: 0; }
-      .delete { flex: 0 0 auto; margin: 0 0 1px; }
+      .step-actions { align-self: end; }
       .complete-control { position: static; grid-area: complete; justify-self: end; margin-top: 1px; }
     }
     @media (max-width: 380px) {
@@ -172,19 +178,22 @@
   </dialog>
 
   <template id="stepTemplate">
-    <article class="step" draggable="true">
+    <article class="step" draggable="false">
       <svg class="completion-stroke" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
         <path d="M 2 91 C 25 89, 46 71, 63 49 S 85 20, 99 10" />
         <path d="M 3 93 C 25 91, 47 73, 64 51 S 86 22, 98 12" opacity=".38" />
       </svg>
       <button class="handle" type="button" aria-label="Drag to reorder" title="Drag to reorder">⠿</button>
       <div class="step-body">
-        <h3 class="step-title" contenteditable="true" spellcheck="true"></h3>
-        <p class="description" contenteditable="true" spellcheck="true"></p>
+        <h3 class="step-title" contenteditable="false" spellcheck="true"></h3>
+        <p class="description" contenteditable="false" spellcheck="true"></p>
       </div>
       <div class="meta">
-        <label class="due-wrap">Due date <input class="due" type="date" /></label>
-        <button class="delete" type="button" aria-label="Delete step" title="Delete step">Delete</button>
+        <label class="due-wrap">Due date <input class="due" type="date" disabled /></label>
+        <div class="step-actions">
+          <button class="edit" type="button" aria-label="Edit step" title="Edit step">✎</button>
+          <button class="delete" type="button" aria-label="Delete step" title="Delete step">×</button>
+        </div>
       </div>
       <label class="complete-control" title="Mark task complete">
         <input class="complete" type="checkbox" />
@@ -260,6 +269,17 @@
       step.completed = card.querySelector('.complete').checked;
       save();
     }
+    function setEditing(card, editing) {
+      const title = card.querySelector('.step-title'); const description = card.querySelector('.description'); const due = card.querySelector('.due'); const button = card.querySelector('.edit');
+      card.classList.toggle('editing', editing); title.contentEditable = String(editing); description.contentEditable = String(editing); due.disabled = !editing;
+      button.textContent = editing ? '✓' : '✎'; button.setAttribute('aria-label', editing ? 'Save step changes' : 'Edit step'); button.title = editing ? 'Save step changes' : 'Edit step';
+      if (editing) requestAnimationFrame(() => title.focus()); else persistFromCard(card);
+    }
+    function moveCardAtY(card, clientY) {
+      const others = [...plan.querySelectorAll('.step:not(.dragging)')];
+      const after = others.find(el => clientY < el.getBoundingClientRect().top + el.offsetHeight / 2);
+      plan.insertBefore(card, after || null);
+    }
     function makeCard(step) {
       const card = template.content.firstElementChild.cloneNode(true); card.dataset.id = step.id;
       card.classList.toggle('completed', Boolean(step.completed));
@@ -271,9 +291,13 @@
       card.querySelector('.complete-copy').textContent = complete.checked ? 'Completed' : 'Mark complete';
       card.querySelectorAll('[contenteditable], .due').forEach(el => el.addEventListener('input', () => persistFromCard(card)));
       complete.addEventListener('change', () => { persistFromCard(card); card.classList.toggle('completed', complete.checked); card.querySelector('.complete-copy').textContent = complete.checked ? 'Completed' : 'Mark complete'; });
+      card.querySelector('.edit').addEventListener('click', () => setEditing(card, !card.classList.contains('editing')));
       card.querySelector('.delete').addEventListener('click', () => { data.steps = data.steps.filter(s => s.id !== step.id); save(); render(); });
-      card.addEventListener('dragstart', e => { card.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
-      card.addEventListener('dragend', () => { card.classList.remove('dragging'); reorderFromDOM(); });
+      const handle = card.querySelector('.handle'); let activePointerId = null;
+      handle.addEventListener('pointerdown', event => { event.preventDefault(); activePointerId = event.pointerId; handle.setPointerCapture(activePointerId); card.classList.add('dragging'); });
+      handle.addEventListener('pointermove', event => { if (event.pointerId !== activePointerId) return; event.preventDefault(); moveCardAtY(card, event.clientY); });
+      const finishPointerDrag = event => { if (event.pointerId !== activePointerId) return; card.classList.remove('dragging'); if (handle.hasPointerCapture(activePointerId)) handle.releasePointerCapture(activePointerId); activePointerId = null; reorderFromDOM(); };
+      handle.addEventListener('pointerup', finishPointerDrag); handle.addEventListener('pointercancel', finishPointerDrag);
       return card;
     }
     function render() {
@@ -288,7 +312,7 @@
       const after = others.find(el => e.clientY < el.getBoundingClientRect().top + el.offsetHeight / 2);
       plan.insertBefore(dragging, after || null);
     });
-    $('#addStep').addEventListener('click', () => { const step = { id: crypto.randomUUID(), title: 'New action', description: 'Describe the next concrete action.', due: '', completed: false }; data.steps.push(step); save(); render(); requestAnimationFrame(() => plan.lastElementChild?.querySelector('.step-title').focus()); });
+    $('#addStep').addEventListener('click', () => { const step = { id: crypto.randomUUID(), title: 'New action', description: 'Describe the next concrete action.', due: '', completed: false }; data.steps.push(step); save(); render(); requestAnimationFrame(() => { const card = plan.lastElementChild; if (card) setEditing(card, true); }); });
     $('#editPlan').addEventListener('click', () => { $('#goalInput').value=data.goal; $('#imageInput').value=data.image; $('#accentInput').value=data.accent; $('#inkInput').value=data.ink; $('#canvasInput').value=data.canvas; dialog.showModal(); });
     $('#cancelDialog').addEventListener('click', () => dialog.close());
     $('#planForm').addEventListener('submit', e => { e.preventDefault(); data.goal=$('#goalInput').value.trim(); data.image=$('#imageInput').value.trim() || defaults.image; data.accent=$('#accentInput').value; data.ink=$('#inkInput').value; data.canvas=$('#canvasInput').value; save(); applyTheme(); dialog.close(); });
