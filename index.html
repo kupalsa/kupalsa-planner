@@ -49,6 +49,9 @@
     .step.completed .completion-stroke { opacity: .92; }
     .completion-stroke path { fill: none; stroke: #c9473d; stroke-width: 3.7; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; filter: drop-shadow(0 1px 0 rgba(117, 23, 20, .16)); }
     .step-actions { display: flex; justify-content: end; align-items: center; gap: 4px; }
+    .gemini { width: 44px; height: 44px; display: grid; place-items: center; border: 1px solid color-mix(in srgb, #6f78ff 28%, var(--line)); border-radius: 10px; padding: 0; background: #fff; color: #5f68d8; text-decoration: none; }
+    .gemini:hover, .gemini:focus-visible { border-color: #7b83f6; background: #f8f8ff; box-shadow: 0 0 0 3px rgba(111, 120, 255, .13); }
+    .gemini svg { width: 24px; height: 24px; }
     .edit, .delete { width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid transparent; border-radius: 8px; padding: 0; background: transparent; color: #718078; font-size: 19px; line-height: 1; }
     .edit:hover, .edit:focus-visible { border-color: var(--line); color: var(--accent-ink); background: #fff; }
     .delete:hover, .delete:focus-visible { border-color: #edcdca; color: #a63e3e; background: #fff8f7; }
@@ -195,6 +198,12 @@
       <div class="meta">
         <label class="due-wrap">Due date <input class="due" type="date" disabled /></label>
         <div class="step-actions">
+          <a class="gemini" href="https://gemini.google.com/app" target="_blank" rel="noopener noreferrer" aria-label="Ask Gemini about this step" title="Copy this step and open Gemini">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <defs><linearGradient id="geminiGradient" x1="3" y1="21" x2="21" y2="3" gradientUnits="userSpaceOnUse"><stop stop-color="#4E8CFF"/><stop offset=".5" stop-color="#8D64E8"/><stop offset="1" stop-color="#E467A8"/></linearGradient></defs>
+              <path fill="url(#geminiGradient)" d="M12 1.5c.65 5.88 3.62 8.85 9.5 9.5-5.88.65-8.85 3.62-9.5 9.5-.65-5.88-3.62-8.85-9.5-9.5 5.88-.65 8.85-3.62 9.5-9.5Z"/>
+            </svg>
+          </a>
           <button class="edit" type="button" aria-label="Edit step" title="Edit step">✎</button>
           <button class="delete" type="button" aria-label="Delete step" title="Delete step">⌫</button>
         </div>
@@ -305,6 +314,7 @@
       card.querySelectorAll('[contenteditable], .due').forEach(el => el.addEventListener('input', () => { if (!card.classList.contains('editing')) persistFromCard(card); }));
       complete.addEventListener('change', () => { persistFromCard(card); card.classList.toggle('completed', complete.checked); card.querySelector('.complete-copy').textContent = complete.checked ? 'Completed' : 'Mark complete'; });
       card.querySelector('.edit').addEventListener('click', () => setEditing(card, !card.classList.contains('editing')));
+      card.querySelector('.gemini').addEventListener('click', () => copyGeminiPrompt(step));
       card.querySelector('.delete').addEventListener('click', () => { if (card.classList.contains('editing')) return setEditing(card, false, false); if (confirm(`Delete “${step.title}”?`)) { data.steps = data.steps.filter(s => s.id !== step.id); save(); render(); } });
       const index = data.steps.findIndex(item => item.id === step.id); const up = card.querySelector('.move-up'); const down = card.querySelector('.move-down');
       up.disabled = index === 0; down.disabled = index === data.steps.length - 1;
@@ -315,6 +325,24 @@
       plan.replaceChildren();
       if (!data.steps.length) { plan.innerHTML = '<div class="empty">No actions yet. Add the first smallest step.</div>'; return; }
       data.steps.forEach(step => plan.append(makeCard(step)));
+    }
+    function buildGeminiPrompt(step) {
+      return `Помоги мне выполнить следующую задачу. Предложи конкретный пошаговый способ действий, учитывая практические ограничения.\n\nЗадача: ${step.title}\n\nОписание: ${step.description || 'Описание не добавлено.'}`;
+    }
+    function copyGeminiPrompt(step) {
+      const prompt = buildGeminiPrompt(step);
+      const textarea = document.createElement('textarea');
+      textarea.value = prompt;
+      textarea.setAttribute('readonly', '');
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.append(textarea);
+      textarea.select();
+      textarea.setSelectionRange(0, textarea.value.length);
+      let copied = false;
+      try { copied = document.execCommand('copy'); } catch (error) { copied = false; }
+      textarea.remove();
+      if (!copied && navigator.clipboard?.writeText) navigator.clipboard.writeText(prompt).catch(() => {});
     }
     $('#addStep').addEventListener('click', () => { const step = { id: crypto.randomUUID(), title: 'New action', description: 'Describe the next concrete action.', due: '', completed: false }; data.steps.push(step); save(); render(); requestAnimationFrame(() => { const card = plan.lastElementChild; if (card) setEditing(card, true); }); });
     $('#editPlan').addEventListener('click', () => { $('#goalInput').value=data.goal; $('#imageInput').value=data.image; $('#accentInput').value=data.accent; $('#inkInput').value=data.ink; $('#canvasInput').value=data.canvas; dialog.showModal(); });
