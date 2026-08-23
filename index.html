@@ -19,13 +19,18 @@
     }
     * { box-sizing: border-box; }
     body { margin: 0; min-width: 320px; background: var(--canvas); color: var(--ink); font: 16px/1.5 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-    button, input, textarea { font: inherit; }
+    button, input, textarea, select { font: inherit; }
     button { cursor: pointer; }
     .page { max-width: 1024px; margin: 0 auto; padding: 28px 20px 56px; }
     .hero { position: relative; min-height: 284px; overflow: hidden; border-radius: 22px; display: flex; align-items: end; isolation: isolate; box-shadow: var(--shadow); background: var(--accent); }
     .hero::before { content: ""; position: absolute; inset: 0; z-index: -2; background: var(--hero-image) center/cover; }
     .hero::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(110deg, color-mix(in srgb, var(--accent-ink) 92%, transparent), color-mix(in srgb, var(--accent) 50%, transparent)); }
     .hero-content { width: 100%; padding: 34px; color: #fff; text-shadow: 0 1px 18px rgba(0,0,0,.32); }
+    .breadcrumbs { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; font-size: 13px; font-weight: 650; color: rgba(255,255,255,.82); }
+    .breadcrumbs button { background: none; border: none; padding: 0; color: rgba(255,255,255,.88); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; font: inherit; }
+    .breadcrumbs button:hover { color: #fff; text-shadow: 0 0 8px rgba(255,255,255,.5); }
+    .breadcrumbs .separator { opacity: .6; font-size: 11px; }
+    .breadcrumbs .current { color: #fff; font-weight: 750; text-decoration: none; opacity: 1; }
     .eyebrow { margin: 0 0 10px; font-size: 12px; font-weight: 750; letter-spacing: .14em; text-transform: uppercase; opacity: .84; }
     h1 { margin: 0; max-width: 720px; font-family: Georgia, "Times New Roman", serif; font-size: clamp(34px, 6vw, 58px); line-height: 1.03; letter-spacing: -.045em; }
     .created { display: inline-block; margin-top: 16px; font-size: 14px; opacity: .88; }
@@ -48,7 +53,10 @@
     .completion-stroke { position: absolute; inset: 7px 8px 7px 4px; z-index: 3; width: calc(100% - 12px); height: calc(100% - 14px); pointer-events: none; overflow: visible; opacity: 0; transition: opacity .18s ease; }
     .step.completed .completion-stroke { opacity: .92; }
     .completion-stroke path { fill: none; stroke: #c9473d; stroke-width: 3.7; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; filter: drop-shadow(0 1px 0 rgba(117, 23, 20, .16)); }
-    .step-actions { display: flex; justify-content: end; align-items: center; gap: 4px; }
+    .step-actions { display: flex; justify-content: end; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .subplan-btn { display: inline-flex; align-items: center; gap: 5px; min-height: 44px; padding: 0 11px; border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line)); border-radius: 10px; background: #fff; color: var(--accent-ink); font-size: 13px; font-weight: 700; text-decoration: none; cursor: pointer; transition: all .15s; }
+    .subplan-btn:hover, .subplan-btn:focus-visible { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, #fff); transform: translateY(-1px); }
+    .subplan-btn.has-subplan { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 18%, #fff); color: var(--accent-ink); }
     .gemini { width: 44px; height: 44px; display: grid; place-items: center; border: 1px solid color-mix(in srgb, #6f78ff 28%, var(--line)); border-radius: 10px; padding: 0; background: #fff; color: #5f68d8; text-decoration: none; }
     .gemini:hover, .gemini:focus-visible { border-color: #7b83f6; background: #f8f8ff; box-shadow: 0 0 0 3px rgba(111, 120, 255, .13); }
     .gemini svg { width: 24px; height: 24px; }
@@ -76,13 +84,23 @@
     .complete-control input:checked + .complete-box::after { content: "✓"; font-size: 14px; font-weight: 900; line-height: 1; }
     .step.completed .complete-copy { color: #9a453e; }
     .empty { padding: 42px 22px; border: 1px dashed #bbc6bd; border-radius: 15px; text-align: center; color: var(--muted); background: rgba(255,255,255,.4); }
-    dialog { width: min(620px, calc(100% - 28px)); border: 0; border-radius: 18px; padding: 0; color: var(--ink); box-shadow: 0 30px 90px rgba(0,0,0,.27); }
+    dialog { width: min(680px, calc(100% - 28px)); border: 0; border-radius: 18px; padding: 0; color: var(--ink); box-shadow: 0 30px 90px rgba(0,0,0,.27); }
     dialog::backdrop { background: rgba(19, 31, 24, .44); backdrop-filter: blur(3px); }
-    .dialog-body { padding: 25px; }
+    .dialog-body { padding: 25px; max-height: 85vh; overflow-y: auto; }
     .dialog-body h2 { margin: 0 0 5px; font-size: 23px; letter-spacing: -.03em; }
     .dialog-body p { margin: 0 0 19px; color: var(--muted); }
+    .library-section { margin-bottom: 24px; }
+    .library-section h3 { margin: 0 0 10px; font-size: 14px; font-weight: 750; color: var(--accent-ink); text-transform: uppercase; letter-spacing: .06em; display: flex; align-items: center; gap: 6px; }
+    .tree-node { display: grid; gap: 6px; margin-bottom: 6px; }
+    .tree-item { display: flex; justify-content: space-between; align-items: center; gap: 8px; width: 100%; text-align: left; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; font-weight: 650; transition: all .14s; }
+    .tree-item:hover { border-color: var(--accent); background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.04); }
+    .tree-item.active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, #fff); font-weight: 750; }
+    .tree-item.level-1 { margin-left: 20px; width: calc(100% - 20px); font-size: 14px; }
+    .tree-item.level-2 { margin-left: 40px; width: calc(100% - 40px); font-size: 13.5px; }
+    .tree-item.level-3 { margin-left: 60px; width: calc(100% - 60px); font-size: 13px; }
+    .tree-badge { font-size: 11px; padding: 2px 7px; border-radius: 6px; background: color-mix(in srgb, var(--line) 70%, transparent); color: var(--muted); font-weight: 700; }
     label { display: grid; gap: 6px; margin: 13px 0; color: var(--muted); font-size: 13px; font-weight: 700; }
-    input, textarea { width: 100%; border: 1px solid var(--line); border-radius: 9px; padding: 10px; background: #fff; color: var(--ink); }
+    input, textarea, select { width: 100%; border: 1px solid var(--line); border-radius: 9px; padding: 10px; background: #fff; color: var(--ink); }
     textarea { min-height: 86px; resize: vertical; }
     .palette { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
     .palette input { padding: 3px; height: 43px; }
@@ -92,7 +110,6 @@
       .page { padding: 12px 12px 38px; }
       .hero-content { padding: 25px; }
       .topbar { align-items: flex-start; flex-direction: column; }
-      /* Read top-to-bottom on a phone: task first, deadline/actions second, completion last. */
       .step { grid-template-columns: 34px minmax(0, 1fr); grid-template-areas: "moves body" ". meta" ". complete"; gap: 12px; min-height: 0; padding: 16px; }
       .move-controls { grid-area: moves; align-self: start; }
       .step-body { grid-area: body; padding-top: 3px; }
@@ -114,7 +131,8 @@
   <main class="page">
     <section class="hero" aria-label="Plan header">
       <div class="hero-content">
-        <p class="eyebrow">Kupalsa Planner</p>
+        <nav id="breadcrumbs" class="breadcrumbs" aria-label="Breadcrumb"></nav>
+        <p class="eyebrow" id="planEyebrow">Kupalsa Planner</p>
         <h1 id="goalTitle">Build my focused plan</h1>
         <span class="created" id="createdAt"></span>
       </div>
@@ -138,6 +156,12 @@
     <form method="dialog" class="dialog-body" id="planForm">
       <h2>Configure this focused plan</h2>
       <p>Use a concrete outcome as the heading. Add an image URL or keep the placeholder until you choose one.</p>
+      <label>Plan type
+        <select id="typeInput">
+          <option value="plan">📋 Обычный план</option>
+          <option value="life-goal">🌟 Жизненная цель</option>
+        </select>
+      </label>
       <label>Goal heading <input id="goalInput" required maxlength="120" placeholder="e.g. Publish my first video-editing portfolio by 30 September" /></label>
       <label>Header image URL <input id="imageInput" type="url" placeholder="https://…" /></label>
       <div class="palette">
@@ -154,11 +178,19 @@
 
   <dialog id="libraryDialog">
     <div class="dialog-body">
-      <h2>My planners</h2>
-      <p>Open an existing plan or create a new focused planner. All plan data stays in your private data repository.</p>
-      <div id="planList" class="plan"></div>
-      <div class="dialog-actions">
-        <button class="button secondary" id="newPlanner" type="button">+ New planner</button>
+      <h2>My planners & Life Goals</h2>
+      <p>Switch between your high-level Life Goals, nested action plans, and standalone focus plans.</p>
+      <div class="library-section">
+        <h3>🌟 Жизненные цели (Life Goals)</h3>
+        <div id="lifeGoalList" class="plan"></div>
+      </div>
+      <div class="library-section">
+        <h3>📋 Свободные планы (Standalone Plans)</h3>
+        <div id="standaloneList" class="plan"></div>
+      </div>
+      <div class="dialog-actions" style="flex-wrap: wrap;">
+        <button class="button primary" id="newLifeGoal" type="button">+ Жизненная цель</button>
+        <button class="button secondary" id="newPlanner" type="button">+ Новый план</button>
         <button class="button secondary" id="closeLibrary" type="button">Close</button>
       </div>
     </div>
@@ -198,6 +230,9 @@
       <div class="meta">
         <label class="due-wrap">Due date <input class="due" type="date" disabled /></label>
         <div class="step-actions">
+          <button class="subplan-btn" type="button" aria-label="Open or create sub-plan" title="Open or create sub-plan">
+            <span class="subplan-icon">📂</span> <span class="subplan-label">+ План</span>
+          </button>
           <a class="gemini" href="https://gemini.google.com/app/?target=agent" target="_blank" rel="noopener noreferrer" aria-label="Ask Gemini about this step" title="Copy this step and open Gemini">
             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
               <defs><linearGradient id="geminiGradient" x1="3" y1="21" x2="21" y2="3" gradientUnits="userSpaceOnUse"><stop stop-color="#4E8CFF"/><stop offset=".5" stop-color="#8D64E8"/><stop offset="1" stop-color="#E467A8"/></linearGradient></defs>
@@ -221,14 +256,18 @@
     const connectionKey = 'kupalsa-planner-connection-v1';
     let remoteSaveTimer;
     let remoteSha = null;
+    let cachedIndex = null;
     const defaults = {
+      type: 'plan',
+      parentId: null,
+      parentStepId: null,
       goal: 'Build my focused plan',
       image: 'https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=1800&q=80',
       accent: '#7f9b8b', ink: '#18372c', canvas: '#eef1ed',
       createdAt: new Date().toISOString(),
       steps: [
-        { id: crypto.randomUUID(), title: 'Define the finished outcome', description: 'Write the goal so that success is concrete, visible, and time-bound.', due: '', completed: false },
-        { id: crypto.randomUUID(), title: 'Add the first action', description: 'Choose the smallest meaningful action that moves the plan forward.', due: '', completed: false }
+        { id: crypto.randomUUID(), title: 'Define the finished outcome', description: 'Write the goal so that success is concrete, visible, and time-bound.', due: '', completed: false, subPlanId: null },
+        { id: crypto.randomUUID(), title: 'Add the first action', description: 'Choose the smallest meaningful action that moves the plan forward.', due: '', completed: false, subPlanId: null }
       ]
     };
     let data = JSON.parse(localStorage.getItem(key) || 'null') || defaults;
@@ -261,21 +300,243 @@
       remoteSha = result.content.sha;
       return result;
     }
-    async function loadRemotePlan() { const config = getConnection(); if (!config?.token) return; try { data = await fetchRemotePlan(config); localStorage.setItem(key, JSON.stringify(data)); applyTheme(); render(); } catch (error) { console.warn('Private data load skipped:', error); } }
-    async function getPlanIndex(config) { const file = await githubRequest(config, 'data/plans.json'); return { sha: file.sha, index: JSON.parse(base64ToText(file.content)) }; }
-    async function putPlanIndex(config, index, sha) { await githubRequest(config, 'data/plans.json', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'Update planner index', content: bytesToBase64(JSON.stringify(index, null, 2)), sha }) }); }
-    async function renderLibrary() { const config = getConnection(); const list = $('#planList'); if (!config?.token) { list.innerHTML = '<div class="empty">Connect your private data repository first.</div>'; return; } list.innerHTML = '<div class="empty">Loading your planners…</div>'; try { const { index } = await getPlanIndex(config); list.replaceChildren(); index.plans.forEach(entry => { const button = document.createElement('button'); button.className = 'button secondary'; button.style.textAlign = 'left'; button.textContent = entry.title; button.addEventListener('click', async () => { config.planId = entry.id; localStorage.setItem(connectionKey, JSON.stringify(config)); remoteSha = null; await loadRemotePlan(); libraryDialog.close(); }); list.append(button); }); } catch (error) { list.innerHTML = `<div class="empty">Could not load plans: ${error.message}</div>`; } }
-    async function deleteCurrentPlanner() { const config = getConnection(); if (!config?.token) return alert('Connect your private data repository before deleting a planner.'); if (!confirm(`Delete “${data.goal}”? This permanently removes its private plan data.`)) return; try { const { sha, index } = await getPlanIndex(config); const file = await githubRequest(config, planPath(config)); await githubRequest(config, planPath(config), { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: `Delete ${config.planId} plan`, sha: file.sha }) }); index.plans = index.plans.filter(entry => entry.id !== config.planId); await putPlanIndex(config, index, sha); data = structuredClone(defaults); remoteSha = null; localStorage.removeItem(connectionKey); save(); applyTheme(); render(); alert('Planner deleted. Create or open another plan from My plans.'); } catch (error) { alert(`Could not delete this planner: ${error.message}`); } }
+    async function getPlanIndex(config) {
+      const file = await githubRequest(config, 'data/plans.json');
+      const index = JSON.parse(base64ToText(file.content));
+      cachedIndex = index;
+      return { sha: file.sha, index };
+    }
+    async function putPlanIndex(config, index, sha) {
+      cachedIndex = index;
+      await githubRequest(config, 'data/plans.json', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'Update planner index', content: bytesToBase64(JSON.stringify(index, null, 2)), sha }) });
+    }
+    async function openPlan(planId) {
+      const config = getConnection();
+      if (!config) return;
+      config.planId = planId;
+      localStorage.setItem(connectionKey, JSON.stringify(config));
+      remoteSha = null;
+      await loadRemotePlan();
+      if (libraryDialog.open) libraryDialog.close();
+    }
+    async function loadRemotePlan() {
+      const config = getConnection();
+      if (!config?.token) { applyTheme(); render(); return; }
+      try {
+        data = await fetchRemotePlan(config);
+        localStorage.setItem(key, JSON.stringify(data));
+        applyTheme();
+        render();
+        try { await getPlanIndex(config); renderBreadcrumbs(); } catch(e) {}
+      } catch (error) {
+        console.warn('Private data load skipped:', error);
+        applyTheme();
+        render();
+      }
+    }
+    function buildBreadcrumbsTrail(currentId, index) {
+      if (!currentId || !index?.plans) return [];
+      const map = new Map(index.plans.map(p => [p.id, p]));
+      const trail = [];
+      let cur = map.get(currentId) || (data.id === currentId ? { id: data.id, title: data.goal, parentId: data.parentId } : null);
+      const visited = new Set();
+      while (cur && !visited.has(cur.id)) {
+        visited.add(cur.id);
+        trail.unshift({ id: cur.id, title: cur.title });
+        cur = cur.parentId ? map.get(cur.parentId) : null;
+      }
+      return trail;
+    }
+    function renderBreadcrumbs() {
+      const nav = $('#breadcrumbs');
+      const config = getConnection();
+      const currentId = config?.planId || data.id;
+      const trail = buildBreadcrumbsTrail(currentId, cachedIndex);
+      nav.replaceChildren();
+      if (!trail.length || trail.length === 1) {
+        const rootLabel = data.type === 'life-goal' ? '🌟 Жизненные цели' : '📋 Мои планы';
+        const rootBtn = document.createElement('button');
+        rootBtn.type = 'button';
+        rootBtn.textContent = rootLabel;
+        rootBtn.addEventListener('click', () => { libraryDialog.showModal(); renderLibrary(); });
+        nav.append(rootBtn);
+        return;
+      }
+      trail.forEach((item, index) => {
+        if (index > 0) {
+          const sep = document.createElement('span');
+          sep.className = 'separator';
+          sep.textContent = '›';
+          nav.append(sep);
+        }
+        if (index === trail.length - 1) {
+          const current = document.createElement('span');
+          current.className = 'current';
+          current.textContent = item.title;
+          nav.append(current);
+        } else {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.textContent = item.title;
+          btn.addEventListener('click', () => openPlan(item.id));
+          nav.append(btn);
+        }
+      });
+    }
+    async function createNewPlanner({ type = 'plan', parentId = null, parentStepId = null, titlePrompt = null } = {}) {
+      const config = getConnection();
+      if (!config?.token) return alert('Connect your private data repository first.');
+      const promptLabel = type === 'life-goal' ? 'What is this Life Goal (главная цель)?' : (parentId ? 'What is the goal of this sub-plan (под-план)?' : 'What is this planner’s precise goal?');
+      const title = titlePrompt || prompt(promptLabel);
+      if (!title?.trim()) return null;
+      const idSuggestion = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || `plan-${Date.now()}`;
+      const id = prompt('Plan ID (lowercase words separated by hyphens):', idSuggestion);
+      if (!id || !/^[a-z0-9-]+$/.test(id)) {
+        alert('Use lowercase letters, numbers, and hyphens only.');
+        return null;
+      }
+      try {
+        const { sha, index } = await getPlanIndex(config);
+        const next = structuredClone(defaults);
+        next.id = id;
+        next.type = type;
+        next.parentId = parentId;
+        next.parentStepId = parentStepId;
+        next.goal = title.trim();
+        next.image = data.image || defaults.image;
+        next.accent = data.accent || defaults.accent;
+        next.ink = data.ink || defaults.ink;
+        next.canvas = data.canvas || defaults.canvas;
+        next.createdAt = new Date().toISOString();
+        data = next;
+        config.planId = id;
+        remoteSha = null;
+        localStorage.setItem(connectionKey, JSON.stringify(config));
+        await pushRemotePlan(config);
+        index.plans.push({
+          id,
+          title: next.goal,
+          type: next.type,
+          parentId: next.parentId,
+          parentStepId: next.parentStepId,
+          path: planPath(config),
+          createdAt: next.createdAt,
+          updatedAt: next.createdAt
+        });
+        await putPlanIndex(config, index, sha);
+        localStorage.setItem(key, JSON.stringify(data));
+        applyTheme();
+        render();
+        renderBreadcrumbs();
+        if (libraryDialog.open) libraryDialog.close();
+        return id;
+      } catch (error) {
+        alert(`Could not create planner: ${error.message}`);
+        return null;
+      }
+    }
+    async function renderLibrary() {
+      const config = getConnection();
+      const lifeList = $('#lifeGoalList');
+      const standaloneList = $('#standaloneList');
+      if (!config?.token) {
+        lifeList.innerHTML = '<div class="empty">Connect your private data repository first.</div>';
+        standaloneList.innerHTML = '';
+        return;
+      }
+      lifeList.innerHTML = '<div class="empty">Loading…</div>';
+      standaloneList.innerHTML = '';
+      try {
+        const { index } = await getPlanIndex(config);
+        lifeList.replaceChildren();
+        standaloneList.replaceChildren();
+        const plans = index.plans || [];
+        const currentId = config.planId || data.id;
+
+        // Group children by parentId
+        const childrenMap = new Map();
+        plans.forEach(p => {
+          if (p.parentId) {
+            const list = childrenMap.get(p.parentId) || [];
+            list.push(p);
+            childrenMap.set(p.parentId, list);
+          }
+        });
+
+        // 1. Render Life Goals hierarchy
+        const lifeGoals = plans.filter(p => p.type === 'life-goal' || (!p.parentId && p.id.startsWith('life-goal')));
+        function renderTree(item, level = 0) {
+          const btn = document.createElement('button');
+          btn.className = `tree-item ${level > 0 ? `level-${Math.min(level, 3)}` : ''} ${item.id === currentId ? 'active' : ''}`;
+          btn.type = 'button';
+          btn.innerHTML = `<span>${level > 0 ? '↳ ' : '🌟 '}<strong>${item.title}</strong></span><span class="tree-badge">${item.type || 'plan'}</span>`;
+          btn.addEventListener('click', () => openPlan(item.id));
+          lifeList.append(btn);
+          const children = childrenMap.get(item.id) || [];
+          children.forEach(child => renderTree(child, level + 1));
+        }
+
+        if (!lifeGoals.length) {
+          lifeList.innerHTML = '<div class="empty">No life goals yet. Tap “+ Жизненная цель” to create one.</div>';
+        } else {
+          lifeGoals.forEach(lg => renderTree(lg, 0));
+        }
+
+        // 2. Render Standalone Plans
+        const standalonePlans = plans.filter(p => !p.parentId && p.type !== 'life-goal' && !p.id.startsWith('life-goal'));
+        if (!standalonePlans.length) {
+          standaloneList.innerHTML = '<div class="empty">No standalone plans yet.</div>';
+        } else {
+          standalonePlans.forEach(entry => {
+            const btn = document.createElement('button');
+            btn.className = `tree-item ${entry.id === currentId ? 'active' : ''}`;
+            btn.type = 'button';
+            btn.innerHTML = `<span>📋 ${entry.title}</span><span class="tree-badge">plan</span>`;
+            btn.addEventListener('click', () => openPlan(entry.id));
+            standaloneList.append(btn);
+            const children = childrenMap.get(entry.id) || [];
+            children.forEach(child => renderTree(child, 1));
+          });
+        }
+      } catch (error) {
+        lifeList.innerHTML = `<div class="empty">Could not load plans: ${error.message}</div>`;
+      }
+    }
+    async function deleteCurrentPlanner() {
+      const config = getConnection();
+      if (!config?.token) return alert('Connect your private data repository before deleting a planner.');
+      if (!confirm(`Delete “${data.goal}”? This permanently removes its private plan data.`)) return;
+      try {
+        const { sha, index } = await getPlanIndex(config);
+        const file = await githubRequest(config, planPath(config));
+        await githubRequest(config, planPath(config), { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: `Delete ${config.planId} plan`, sha: file.sha }) });
+        index.plans = index.plans.filter(entry => entry.id !== config.planId);
+        await putPlanIndex(config, index, sha);
+        data = structuredClone(defaults);
+        remoteSha = null;
+        localStorage.removeItem(connectionKey);
+        save();
+        applyTheme();
+        render();
+        alert('Planner deleted. Create or open another plan from My plans.');
+      } catch (error) {
+        alert(`Could not delete this planner: ${error.message}`);
+      }
+    }
     function applyTheme() {
       document.documentElement.style.setProperty('--accent', data.accent);
       document.documentElement.style.setProperty('--accent-ink', data.ink);
       document.documentElement.style.setProperty('--canvas', data.canvas);
       document.documentElement.style.setProperty('--hero-image', `url("${data.image.replaceAll('"', '%22')}")`);
       $('#goalTitle').textContent = data.goal;
+      $('#planEyebrow').textContent = data.type === 'life-goal' ? '🌟 Life Goal' : (data.parentId ? '📂 Sub-plan' : 'Kupalsa Planner');
       $('#createdAt').textContent = `Created ${formatDate(data.createdAt)}`;
+      renderBreadcrumbs();
     }
     function persistFromCard(card) {
-      const id = card.dataset.id; const step = data.steps.find(s => s.id === id); if (!step) return;
+      const id = card.dataset.id;
+      const step = data.steps.find(s => s.id === id);
+      if (!step) return;
       step.title = card.querySelector('.step-title').textContent.trim() || 'Untitled step';
       step.description = card.querySelector('.description').textContent.trim();
       step.due = card.querySelector('.due').value;
@@ -303,7 +564,8 @@
       requestAnimationFrame(() => plan.querySelector(`[data-id="${stepId}"] .move-control`)?.focus());
     }
     function makeCard(step) {
-      const card = template.content.firstElementChild.cloneNode(true); card.dataset.id = step.id;
+      const card = template.content.firstElementChild.cloneNode(true);
+      card.dataset.id = step.id;
       card.classList.toggle('completed', Boolean(step.completed));
       card.querySelector('.step-title').textContent = step.title;
       card.querySelector('.description').textContent = step.description;
@@ -315,7 +577,42 @@
       complete.addEventListener('change', () => { persistFromCard(card); card.classList.toggle('completed', complete.checked); card.querySelector('.complete-copy').textContent = complete.checked ? 'Completed' : 'Mark complete'; });
       card.querySelector('.edit').addEventListener('click', () => setEditing(card, !card.classList.contains('editing')));
       card.querySelector('.gemini').addEventListener('click', () => copyGeminiPrompt(step));
-      card.querySelector('.delete').addEventListener('click', () => { if (card.classList.contains('editing')) return setEditing(card, false, false); if (confirm(`Delete “${step.title}”?`)) { data.steps = data.steps.filter(s => s.id !== step.id); save(); render(); } });
+
+      // Sub-plan button handling
+      const subplanBtn = card.querySelector('.subplan-btn');
+      const subplanLabel = subplanBtn.querySelector('.subplan-label');
+      if (step.subPlanId) {
+        subplanBtn.classList.add('has-subplan');
+        const childEntry = cachedIndex?.plans?.find(p => p.id === step.subPlanId);
+        subplanLabel.textContent = childEntry ? `📂 ${childEntry.title}` : '📂 Открыть план';
+        subplanBtn.title = 'Open attached sub-plan';
+        subplanBtn.addEventListener('click', () => openPlan(step.subPlanId));
+      } else {
+        subplanBtn.classList.remove('has-subplan');
+        subplanLabel.textContent = '+ План';
+        subplanBtn.title = 'Create a new sub-plan for this action';
+        subplanBtn.addEventListener('click', async () => {
+          const newPlanId = await createNewPlanner({
+            type: 'sub-plan',
+            parentId: data.id,
+            parentStepId: step.id,
+            titlePrompt: step.title
+          });
+          if (newPlanId) {
+            step.subPlanId = newPlanId;
+            save();
+          }
+        });
+      }
+
+      card.querySelector('.delete').addEventListener('click', () => {
+        if (card.classList.contains('editing')) return setEditing(card, false, false);
+        if (confirm(`Delete “${step.title}”?`)) {
+          data.steps = data.steps.filter(s => s.id !== step.id);
+          save();
+          render();
+        }
+      });
       const index = data.steps.findIndex(item => item.id === step.id); const up = card.querySelector('.move-up'); const down = card.querySelector('.move-down');
       up.disabled = index === 0; down.disabled = index === data.steps.length - 1;
       up.addEventListener('click', () => moveStep(step.id, -1)); down.addEventListener('click', () => moveStep(step.id, 1));
@@ -344,13 +641,14 @@
       textarea.remove();
       if (!copied && navigator.clipboard?.writeText) navigator.clipboard.writeText(prompt).catch(() => {});
     }
-    $('#addStep').addEventListener('click', () => { const step = { id: crypto.randomUUID(), title: 'New action', description: 'Describe the next concrete action.', due: '', completed: false }; data.steps.push(step); save(); render(); requestAnimationFrame(() => { const card = plan.lastElementChild; if (card) setEditing(card, true); }); });
-    $('#editPlan').addEventListener('click', () => { $('#goalInput').value=data.goal; $('#imageInput').value=data.image; $('#accentInput').value=data.accent; $('#inkInput').value=data.ink; $('#canvasInput').value=data.canvas; dialog.showModal(); });
+    $('#addStep').addEventListener('click', () => { const step = { id: crypto.randomUUID(), title: 'New action', description: 'Describe the next concrete action.', due: '', completed: false, subPlanId: null }; data.steps.push(step); save(); render(); requestAnimationFrame(() => { const card = plan.lastElementChild; if (card) setEditing(card, true); }); });
+    $('#editPlan').addEventListener('click', () => { $('#typeInput').value = data.type || 'plan'; $('#goalInput').value=data.goal; $('#imageInput').value=data.image; $('#accentInput').value=data.accent; $('#inkInput').value=data.ink; $('#canvasInput').value=data.canvas; dialog.showModal(); });
     $('#cancelDialog').addEventListener('click', () => dialog.close());
-    $('#planForm').addEventListener('submit', e => { e.preventDefault(); data.goal=$('#goalInput').value.trim(); data.image=$('#imageInput').value.trim() || defaults.image; data.accent=$('#accentInput').value; data.ink=$('#inkInput').value; data.canvas=$('#canvasInput').value; save(); applyTheme(); dialog.close(); });
+    $('#planForm').addEventListener('submit', e => { e.preventDefault(); data.type=$('#typeInput').value; data.goal=$('#goalInput').value.trim(); data.image=$('#imageInput').value.trim() || defaults.image; data.accent=$('#accentInput').value; data.ink=$('#inkInput').value; data.canvas=$('#canvasInput').value; save(); applyTheme(); dialog.close(); });
     $('#planLibrary').addEventListener('click', () => { libraryDialog.showModal(); renderLibrary(); });
     $('#closeLibrary').addEventListener('click', () => libraryDialog.close());
-    $('#newPlanner').addEventListener('click', async () => { const config = getConnection(); if (!config?.token) return alert('Connect your private data repository first.'); const title = prompt('What is this planner’s precise goal?'); if (!title?.trim()) return; const id = prompt('Plan ID (lowercase words separated by hyphens):', title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')); if (!id || !/^[a-z0-9-]+$/.test(id)) return alert('Use lowercase letters, numbers, and hyphens only.'); try { const { sha, index } = await getPlanIndex(config); const next = structuredClone(defaults); next.id=id; next.goal=title.trim(); next.createdAt=new Date().toISOString(); data=next; config.planId=id; remoteSha=null; localStorage.setItem(connectionKey, JSON.stringify(config)); await pushRemotePlan(config); index.plans.push({ id, title: next.goal, path: planPath(config), createdAt: next.createdAt, updatedAt: next.createdAt }); await putPlanIndex(config, index, sha); localStorage.setItem(key, JSON.stringify(data)); applyTheme(); render(); libraryDialog.close(); } catch (error) { alert(`Could not create planner: ${error.message}`); } });
+    $('#newPlanner').addEventListener('click', () => createNewPlanner({ type: 'plan' }));
+    $('#newLifeGoal').addEventListener('click', () => createNewPlanner({ type: 'life-goal' }));
     $('#deletePlanner').addEventListener('click', deleteCurrentPlanner);
     $('#dataSettings').addEventListener('click', () => { const config = getConnection() || { user: 'kupalsa', repo: 'Kupalsa-Planner-Data', planId: 'starter-plan', token: '' }; $('#githubUserInput').value = config.user || ''; $('#githubRepoInput').value = config.repo || ''; $('#planIdInput').value = config.planId || ''; $('#githubTokenInput').value = config.token || ''; $('#connectionMessage').textContent = 'Token scope: this data repo only → Contents: Read and write.'; dataDialog.showModal(); });
     $('#cancelDataDialog').addEventListener('click', () => dataDialog.close());
