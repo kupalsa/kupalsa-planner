@@ -133,7 +133,7 @@
       <div class="hero-content">
         <nav id="breadcrumbs" class="breadcrumbs" aria-label="Breadcrumb"></nav>
         <p class="eyebrow" id="planEyebrow">Kupalsa Planner</p>
-        <h1 id="goalTitle">Build my focused plan</h1>
+        <h1 id="goalTitle">Your plans, your direction</h1>
         <span class="created" id="createdAt"></span>
       </div>
     </section>
@@ -257,20 +257,21 @@
     let remoteSaveTimer;
     let remoteSha = null;
     let cachedIndex = null;
-    const defaults = {
+    const newPlanDefaults = {
       type: 'plan',
       parentId: null,
       parentStepId: null,
-      goal: 'Build my focused plan',
+      goal: '',
       image: 'https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=1800&q=80',
       accent: '#7f9b8b', ink: '#18372c', canvas: '#eef1ed',
-      createdAt: new Date().toISOString(),
-      steps: [
-        { id: crypto.randomUUID(), title: 'Define the finished outcome', description: 'Write the goal so that success is concrete, visible, and time-bound.', due: '', completed: false, subPlanId: null },
-        { id: crypto.randomUUID(), title: 'Add the first action', description: 'Choose the smallest meaningful action that moves the plan forward.', due: '', completed: false, subPlanId: null }
-      ]
+      createdAt: null,
+      steps: []
     };
-    let data = JSON.parse(localStorage.getItem(key) || 'null') || defaults;
+    let data = JSON.parse(localStorage.getItem(key) || 'null');
+    if (data?.goal === 'Build my focused plan') {
+      data = null;
+      localStorage.removeItem(key);
+    }
     const $ = s => document.querySelector(s);
     const plan = $('#plan'); const template = $('#stepTemplate'); const dialog = $('#planDialog'); const dataDialog = $('#dataDialog'); const libraryDialog = $('#libraryDialog');
     const formatDate = iso => new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(iso));
@@ -321,7 +322,7 @@
     }
     async function loadRemotePlan() {
       const config = getConnection();
-      if (!config?.token) { applyTheme(); render(); return; }
+      if (!config?.token || !config?.planId) { applyTheme(); render(); return; }
       try {
         data = await fetchRemotePlan(config);
         localStorage.setItem(key, JSON.stringify(data));
@@ -329,6 +330,13 @@
         render();
         try { await getPlanIndex(config); renderBreadcrumbs(); } catch(e) {}
       } catch (error) {
+        if (String(error.message).startsWith('404:')) {
+          data = null;
+          localStorage.removeItem(key);
+          applyTheme();
+          render();
+          return;
+        }
         console.warn('Private data load skipped:', error);
         applyTheme();
         render();
@@ -338,7 +346,7 @@
       if (!currentId || !index?.plans) return [];
       const map = new Map(index.plans.map(p => [p.id, p]));
       const trail = [];
-      let cur = map.get(currentId) || (data.id === currentId ? { id: data.id, title: data.goal, parentId: data.parentId } : null);
+      let cur = map.get(currentId) || (data?.id === currentId ? { id: data.id, title: data.goal, parentId: data.parentId } : null);
       const visited = new Set();
       while (cur && !visited.has(cur.id)) {
         visited.add(cur.id);
@@ -350,9 +358,10 @@
     function renderBreadcrumbs() {
       const nav = $('#breadcrumbs');
       const config = getConnection();
-      const currentId = config?.planId || data.id;
+      const currentId = config?.planId || data?.id;
       const trail = buildBreadcrumbsTrail(currentId, cachedIndex);
       nav.replaceChildren();
+      if (!data) return;
       if (!trail.length || trail.length === 1) {
         const rootLabel = data.type === 'life-goal' ? '🌟 Жизненные цели' : '📋 Мои планы';
         const rootBtn = document.createElement('button');
@@ -397,16 +406,16 @@
       }
       try {
         const { sha, index } = await getPlanIndex(config);
-        const next = structuredClone(defaults);
+        const next = structuredClone(newPlanDefaults);
         next.id = id;
         next.type = type;
         next.parentId = parentId;
         next.parentStepId = parentStepId;
         next.goal = title.trim();
-        next.image = data.image || defaults.image;
-        next.accent = data.accent || defaults.accent;
-        next.ink = data.ink || defaults.ink;
-        next.canvas = data.canvas || defaults.canvas;
+        next.image = data?.image || newPlanDefaults.image;
+        next.accent = data?.accent || newPlanDefaults.accent;
+        next.ink = data?.ink || newPlanDefaults.ink;
+        next.canvas = data?.canvas || newPlanDefaults.canvas;
         next.createdAt = new Date().toISOString();
         data = next;
         config.planId = id;
@@ -512,25 +521,27 @@
         await githubRequest(config, planPath(config), { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: `Delete ${config.planId} plan`, sha: file.sha }) });
         index.plans = index.plans.filter(entry => entry.id !== config.planId);
         await putPlanIndex(config, index, sha);
-        data = structuredClone(defaults);
+        data = null;
         remoteSha = null;
-        localStorage.removeItem(connectionKey);
-        save();
+        config.planId = '';
+        localStorage.setItem(connectionKey, JSON.stringify(config));
+        localStorage.removeItem(key);
         applyTheme();
         render();
-        alert('Planner deleted. Create or open another plan from My plans.');
+        alert('Planner deleted. Your private data connection is still active — create or open another plan from My plans.');
       } catch (error) {
         alert(`Could not delete this planner: ${error.message}`);
       }
     }
     function applyTheme() {
-      document.documentElement.style.setProperty('--accent', data.accent);
-      document.documentElement.style.setProperty('--accent-ink', data.ink);
-      document.documentElement.style.setProperty('--canvas', data.canvas);
-      document.documentElement.style.setProperty('--hero-image', `url("${data.image.replaceAll('"', '%22')}")`);
-      $('#goalTitle').textContent = data.goal;
-      $('#planEyebrow').textContent = data.type === 'life-goal' ? '🌟 Life Goal' : (data.parentId ? '📂 Sub-plan' : 'Kupalsa Planner');
-      $('#createdAt').textContent = `Created ${formatDate(data.createdAt)}`;
+      const current = data || newPlanDefaults;
+      document.documentElement.style.setProperty('--accent', current.accent);
+      document.documentElement.style.setProperty('--accent-ink', current.ink);
+      document.documentElement.style.setProperty('--canvas', current.canvas);
+      document.documentElement.style.setProperty('--hero-image', `url("${current.image.replaceAll('"', '%22')}")`);
+      $('#goalTitle').textContent = data ? data.goal : 'Your plans, your direction';
+      $('#planEyebrow').textContent = data ? (data.type === 'life-goal' ? '🌟 Life Goal' : (data.parentId ? '📂 Sub-plan' : 'Kupalsa Planner')) : 'Kupalsa Planner';
+      $('#createdAt').textContent = data?.createdAt ? `Created ${formatDate(data.createdAt)}` : '';
       renderBreadcrumbs();
     }
     function persistFromCard(card) {
@@ -618,8 +629,19 @@
       up.addEventListener('click', () => moveStep(step.id, -1)); down.addEventListener('click', () => moveStep(step.id, 1));
       return card;
     }
+    function renderEmptyPlanner() {
+      plan.innerHTML = '<div class="empty"><p>No plan is open.</p><button class="button primary" id="createFirstPlan" type="button">Create your first plan</button></div>';
+      $('#editPlan').hidden = true;
+      $('#addStep').hidden = true;
+      $('#deletePlanner').hidden = true;
+      $('#createFirstPlan').addEventListener('click', () => { libraryDialog.showModal(); renderLibrary(); });
+    }
     function render() {
       plan.replaceChildren();
+      if (!data) { renderEmptyPlanner(); return; }
+      $('#editPlan').hidden = false;
+      $('#addStep').hidden = false;
+      $('#deletePlanner').hidden = false;
       if (!data.steps.length) { plan.innerHTML = '<div class="empty">No actions yet. Add the first smallest step.</div>'; return; }
       data.steps.forEach(step => plan.append(makeCard(step)));
     }
@@ -644,7 +666,7 @@
     $('#addStep').addEventListener('click', () => { const step = { id: crypto.randomUUID(), title: 'New action', description: 'Describe the next concrete action.', due: '', completed: false, subPlanId: null }; data.steps.push(step); save(); render(); requestAnimationFrame(() => { const card = plan.lastElementChild; if (card) setEditing(card, true); }); });
     $('#editPlan').addEventListener('click', () => { $('#typeInput').value = data.type || 'plan'; $('#goalInput').value=data.goal; $('#imageInput').value=data.image; $('#accentInput').value=data.accent; $('#inkInput').value=data.ink; $('#canvasInput').value=data.canvas; dialog.showModal(); });
     $('#cancelDialog').addEventListener('click', () => dialog.close());
-    $('#planForm').addEventListener('submit', e => { e.preventDefault(); data.type=$('#typeInput').value; data.goal=$('#goalInput').value.trim(); data.image=$('#imageInput').value.trim() || defaults.image; data.accent=$('#accentInput').value; data.ink=$('#inkInput').value; data.canvas=$('#canvasInput').value; save(); applyTheme(); dialog.close(); });
+    $('#planForm').addEventListener('submit', e => { e.preventDefault(); data.type=$('#typeInput').value; data.goal=$('#goalInput').value.trim(); data.image=$('#imageInput').value.trim() || newPlanDefaults.image; data.accent=$('#accentInput').value; data.ink=$('#inkInput').value; data.canvas=$('#canvasInput').value; save(); applyTheme(); dialog.close(); });
     $('#planLibrary').addEventListener('click', () => { libraryDialog.showModal(); renderLibrary(); });
     $('#closeLibrary').addEventListener('click', () => libraryDialog.close());
     $('#newPlanner').addEventListener('click', () => createNewPlanner({ type: 'plan' }));
