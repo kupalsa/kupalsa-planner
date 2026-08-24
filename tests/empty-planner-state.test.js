@@ -9,7 +9,7 @@ assert.doesNotMatch(html, /<h1 id="goalTitle">Build my focused plan<\/h1>/, 'the
 
 // The empty state must guide the user to create a real remote plan.
 assert.match(html, /function renderEmptyPlanner\(\)/, 'renderEmptyPlanner must exist');
-assert.match(html, /Create your first plan/, 'empty state must offer a create-plan action');
+assert.match(html, />Creat a plan</, 'empty state must use the requested “Creat a plan” label');
 
 // Removing a plan must preserve the private-data connection so My plans can still load.
 const deleteStart = html.indexOf('async function deleteCurrentPlanner()');
