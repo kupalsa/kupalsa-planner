@@ -507,7 +507,7 @@
           }
         });
 
-        // 1. Render Life Goals hierarchy
+        // 1. Render Life Goals grouped by the base life domains.
         const lifeGoals = plans.filter(p => p.type === 'life-goal' || (!p.parentId && p.id.startsWith('life-goal')));
         function renderTree(item, level = 0) {
           const btn = document.createElement('button');
@@ -519,12 +519,13 @@
           const children = childrenMap.get(item.id) || [];
           children.forEach(child => renderTree(child, level + 1));
         }
-
-        if (!lifeGoals.length) {
-          lifeList.innerHTML = '<div class="empty">No life goals yet. Tap “+ Жизненная цель” to create one.</div>';
-        } else {
-          lifeGoals.forEach(lg => renderTree(lg, 0));
-        }
+        const domains = [...defaultDomains, ...lifeGoals.map(g => g.domain || 'Мои жизненные цели').filter(d => !defaultDomains.includes(d))];
+        domains.forEach(domain => {
+          const heading = document.createElement('h4'); heading.className = 'goal-section-title'; heading.textContent = domain; lifeList.append(heading);
+          const goals = lifeGoals.filter(g => (g.domain || 'Мои жизненные цели') === domain);
+          if (!goals.length) { const empty = document.createElement('div'); empty.className = 'empty'; empty.textContent = 'Главная цель этой сферы пока не создана.'; lifeList.append(empty); }
+          goals.forEach(goal => renderTree(goal, 0));
+        });
 
         // 2. Render Standalone Plans
         const standalonePlans = plans.filter(p => !p.parentId && p.type !== 'life-goal' && !p.id.startsWith('life-goal'));
