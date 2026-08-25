@@ -84,6 +84,23 @@
     .complete-control input:checked + .complete-box::after { content: "✓"; font-size: 14px; font-weight: 900; line-height: 1; }
     .step.completed .complete-copy { color: #9a453e; }
     .empty { padding: 42px 22px; border: 1px dashed #bbc6bd; border-radius: 15px; text-align: center; color: var(--muted); background: rgba(255,255,255,.4); }
+    /* Goals use a rich green-and-gold language; plans remain intentionally neutral. */
+    .goal-tree { display: grid; gap: 14px; }
+    .goal-section-title { margin: 0 0 8px; color: #8a6519; font-size: 13px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+    .goal-card { border: 1px solid #c9a14b; border-left: 5px solid #c59b3b; border-radius: 16px; padding: 16px; background: linear-gradient(135deg, #173a2e, #102820); color: #fff8df; box-shadow: 0 10px 25px rgba(16,40,32,.15); }
+    .goal-card[data-depth="1"] { margin-left: 20px; background: linear-gradient(135deg, #214535, #153427); }
+    .goal-card[data-depth="2"], .goal-card[data-depth="3"] { margin-left: 40px; background: linear-gradient(135deg, #2a4c3b, #1a382c); }
+    .goal-card h3 { margin: 0; font-family: Georgia, serif; font-size: 19px; color: #f6d880; }
+    .goal-meta { margin: 6px 0 12px; font-size: 12px; color: #dfcca0; }
+    .goal-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .goal-actions button, .goal-actions summary { border: 1px solid #e0b957; border-radius: 9px; padding: 7px 10px; color: #fff1bd; background: rgba(255,255,255,.06); font-weight: 700; cursor: pointer; }
+    .goal-children { display: grid; gap: 10px; margin-top: 12px; }
+    .goal-plan-preview { margin-top: 10px; padding: 12px; border-radius: 11px; background: #f7f7f4; color: #29332e; border: 1px solid #d7d9d5; }
+    .goal-plan-preview h4 { margin: 0 0 6px; color: #4c554f; font-size: 13px; }
+    .goal-plan-preview ul { margin: 5px 0 8px; padding-left: 20px; color: #65716a; font-size: 13px; }
+    .goal-plan-preview a { color: #496258; font-weight: 700; }
+    .goal-date { font: inherit; color: #fff1bd; background: transparent; border: 0; border-bottom: 1px solid #c9a14b; }
+    .plan-mode .topbar h2 { color: #4b5750; }
     dialog { width: min(680px, calc(100% - 28px)); border: 0; border-radius: 18px; padding: 0; color: var(--ink); box-shadow: 0 30px 90px rgba(0,0,0,.27); }
     dialog::backdrop { background: rgba(19, 31, 24, .44); backdrop-filter: blur(3px); }
     .dialog-body { padding: 25px; max-height: 85vh; overflow-y: auto; }
@@ -272,6 +289,19 @@
       data = null;
       localStorage.removeItem(key);
     }
+    const defaultDomains = ['Отношения', 'Семья', 'Здоровье и энергия'];
+    function normalizeGoalTree(node) {
+      if (!node) return node;
+      node.subGoals = Array.isArray(node.subGoals) ? node.subGoals : [];
+      node.plans = Array.isArray(node.plans) ? node.plans : [];
+      node.subGoals.forEach(normalizeGoalTree);
+      return node;
+    }
+    if (data?.type === 'life-goal') {
+      data.domain = data.domain || 'Мои жизненные цели';
+      data.subGoals = Array.isArray(data.subGoals) ? data.subGoals : [];
+      data.subGoals.forEach(normalizeGoalTree);
+    }
     const $ = s => document.querySelector(s);
     const plan = $('#plan'); const template = $('#stepTemplate'); const dialog = $('#planDialog'); const dataDialog = $('#dataDialog'); const libraryDialog = $('#libraryDialog');
     const formatDate = iso => new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(iso));
@@ -289,9 +319,9 @@
       if (!response.ok) throw new Error(`${response.status}: ${await response.text()}`);
       return response.status === 204 ? null : response.json();
     }
-    async function fetchRemotePlan(config) {
+    async function fetchRemotePlan(config, trackSha = true) {
       const file = await githubRequest(config, planPath(config));
-      remoteSha = file.sha;
+      if (trackSha) remoteSha = file.sha;
       return JSON.parse(base64ToText(file.content));
     }
     async function pushRemotePlan(config) {
@@ -392,7 +422,7 @@
         }
       });
     }
-    async function createNewPlanner({ type = 'plan', parentId = null, parentStepId = null, titlePrompt = null } = {}) {
+    async function createNewPlanner({ type = 'plan', parentId = null, parentStepId = null, parentGoalId = null, titlePrompt = null } = {}) {
       const config = getConnection();
       if (!config?.token) return alert('Connect your private data repository first.');
       const promptLabel = type === 'life-goal' ? 'What is this Life Goal (главная цель)?' : (parentId ? 'What is the goal of this sub-plan (под-план)?' : 'What is this planner’s precise goal?');
@@ -411,6 +441,9 @@
         next.type = type;
         next.parentId = parentId;
         next.parentStepId = parentStepId;
+        next.parentGoalId = parentGoalId;
+        if (type === 'life-goal') next.domain = prompt(`Life domain (${defaultDomains.join(', ')})`, defaultDomains[0]) || defaultDomains[0];
+        next.subGoals = [];
         next.goal = title.trim();
         next.image = data?.image || newPlanDefaults.image;
         next.accent = data?.accent || newPlanDefaults.accent;
@@ -428,6 +461,8 @@
           type: next.type,
           parentId: next.parentId,
           parentStepId: next.parentStepId,
+          parentGoalId: next.parentGoalId,
+          domain: next.domain || null,
           path: planPath(config),
           createdAt: next.createdAt,
           updatedAt: next.createdAt
@@ -629,6 +664,72 @@
       up.addEventListener('click', () => moveStep(step.id, -1)); down.addEventListener('click', () => moveStep(step.id, 1));
       return card;
     }
+    function createSubGoal(parent) {
+      const title = prompt('Название подцели');
+      if (!title?.trim()) return;
+      const estimatedAt = prompt('Примерно когда достичь? (YYYY-MM-DD, опционально)', '') || '';
+      parent.subGoals = parent.subGoals || [];
+      parent.subGoals.push({ id: crypto.randomUUID(), title: title.trim(), estimatedAt, completedAt: '', subGoals: [], plans: [] });
+      save(); render();
+    }
+    async function createGoalPlan(goal) {
+      const parentData = data;
+      const planId = await createNewPlanner({ type: 'plan', parentGoalId: goal.id, titlePrompt: goal.title });
+      if (planId) {
+        goal.plans = goal.plans || [];
+        goal.plans.push(planId);
+        const config = getConnection();
+        data = parentData;
+        config.planId = parentData.id;
+        remoteSha = null;
+        localStorage.setItem(connectionKey, JSON.stringify(config));
+        await pushRemotePlan(config);
+        localStorage.setItem(key, JSON.stringify(data));
+        applyTheme(); render();
+      }
+    }
+    async function renderGoalPlanPreview(planId, host) {
+      const config = getConnection();
+      if (!config?.token) { host.textContent = 'Подключите приватное хранилище, чтобы открыть план.'; return; }
+      try {
+        const clone = { ...config, planId };
+        const child = await fetchRemotePlan(clone, false);
+        const preview = document.createElement('div'); preview.className = 'goal-plan-preview';
+        preview.innerHTML = `<h4>План действий</h4><ul>${(child.steps || []).slice(0, 5).map(s => `<li>${s.title}</li>`).join('') || '<li>В этом плане пока нет шагов.</li>'}</ul>`;
+        const open = document.createElement('a'); open.href = '#'; open.textContent = 'Открыть полный план'; open.addEventListener('click', e => { e.preventDefault(); openPlan(planId); });
+        preview.append(open); host.replaceChildren(preview);
+      } catch { host.textContent = 'План создан. Нажмите, чтобы открыть его из библиотеки.'; }
+    }
+    function renderGoalTree(goals, depth = 0) {
+      const tree = document.createElement('div'); tree.className = 'goal-tree';
+      goals.forEach(goal => {
+        normalizeGoalTree(goal);
+        const card = document.createElement('article'); card.className = 'goal-card'; card.dataset.depth = Math.min(depth, 3);
+        const completed = goal.completedAt ? `Выполнено: ${formatDate(goal.completedAt)}` : 'Ещё не выполнена';
+        card.innerHTML = `<h3>${goal.title}</h3><div class="goal-meta">Ожидаемо: ${goal.estimatedAt || 'не задано'} · ${completed}</div>`;
+        const actions = document.createElement('div'); actions.className = 'goal-actions';
+        const sub = document.createElement('button'); sub.textContent = '+ Создать подцель'; sub.addEventListener('click', () => createSubGoal(goal)); actions.append(sub);
+        const planButton = document.createElement('button'); planButton.textContent = '+ Создать план'; planButton.addEventListener('click', () => createGoalPlan(goal)); actions.append(planButton);
+        const complete = document.createElement('button'); complete.textContent = goal.completedAt ? '↩ Отменить выполнение' : '✓ Отметить выполненной'; complete.addEventListener('click', () => { goal.completedAt = goal.completedAt ? '' : new Date().toISOString(); save(); render(); }); actions.append(complete);
+        card.append(actions);
+        const children = document.createElement('div'); children.className = 'goal-children';
+        if (goal.subGoals.length) children.append(renderGoalTree(goal.subGoals, depth + 1));
+        (goal.plans || []).forEach(planId => { const d = document.createElement('details'); d.innerHTML = '<summary>Раскрыть план действий</summary>'; const host = document.createElement('div'); d.append(host); d.addEventListener('toggle', () => { if (d.open && !host.childElementCount) renderGoalPlanPreview(planId, host); }); children.append(d); });
+        if (children.childElementCount) card.append(children);
+        tree.append(card);
+      });
+      return tree;
+    }
+    function renderLifeGoal() {
+      const title = document.createElement('p'); title.className = 'goal-section-title'; title.textContent = `Сфера: ${data.domain || 'Мои жизненные цели'} · Sub Goals`;
+      plan.append(title);
+      if (!data.subGoals.length) plan.innerHTML += '<div class="empty">Пока нет подцелей. Создайте первую цель, которая приблизит вас к главной.</div>';
+      const rootActions = document.createElement('div'); rootActions.className = 'goal-actions';
+      const sub = document.createElement('button'); sub.textContent = '+ Создать подцель'; sub.addEventListener('click', () => createSubGoal(data)); rootActions.append(sub);
+      const planButton = document.createElement('button'); planButton.textContent = '+ Создать план'; planButton.addEventListener('click', () => createGoalPlan(data)); rootActions.append(planButton);
+      plan.append(rootActions);
+      if (data.subGoals.length) plan.append(renderGoalTree(data.subGoals));
+    }
     function renderEmptyPlanner() {
       plan.innerHTML = '<div class="empty"><p>No plan is open.</p><button class="button primary" id="createFirstPlan" type="button">Creat a plan</button></div>';
       $('#editPlan').hidden = true;
@@ -640,8 +741,11 @@
       plan.replaceChildren();
       if (!data) { renderEmptyPlanner(); return; }
       $('#editPlan').hidden = false;
-      $('#addStep').hidden = false;
+      $('#addStep').hidden = data.type === 'life-goal';
       $('#deletePlanner').hidden = false;
+      document.body.classList.toggle('plan-mode', data.type !== 'life-goal');
+      $('.topbar h2').textContent = data.type === 'life-goal' ? 'Sub Goals' : 'Steps & actions';
+      if (data.type === 'life-goal') { renderLifeGoal(); return; }
       if (!data.steps.length) { plan.innerHTML = '<div class="empty">No actions yet. Add the first smallest step.</div>'; return; }
       data.steps.forEach(step => plan.append(makeCard(step)));
     }
