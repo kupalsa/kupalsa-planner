@@ -101,6 +101,10 @@
     .goal-plan-preview a { color: #496258; font-weight: 700; }
     .goal-date { font: inherit; color: #fff1bd; background: transparent; border: 0; border-bottom: 1px solid #c9a14b; }
     .plan-mode .topbar h2 { color: #4b5750; }
+    .side-menu { position: fixed; inset: 0 auto 0 0; z-index: 20; width: min(310px, 84vw); padding: 20px; background: #102820; color: #fff8df; box-shadow: 18px 0 50px rgba(0,0,0,.25); transform: translateX(-105%); transition: transform .2s; }
+    .side-menu.open { transform: translateX(0); }
+    .side-menu-head { display:flex; justify-content:space-between; font-size:18px; margin-bottom:18px; }.side-menu-head button{background:none;border:0;color:#fff8df;font-size:28px}.side-menu-actions{display:grid;gap:10px}.side-menu-actions button{width:100%;text-align:left}
+    .goal-more { display:inline-block; position:relative; }.goal-more summary{list-style:none;font-size:20px;padding:5px 11px}.goal-more summary::-webkit-details-marker{display:none}.goal-more[open] .goal-actions{position:absolute;right:0;z-index:4;min-width:210px;padding:8px;background:#16382c;border:1px solid #c9a14b;border-radius:10px}.goal-more .goal-actions button{width:100%;text-align:left}
     dialog { width: min(680px, calc(100% - 28px)); border: 0; border-radius: 18px; padding: 0; color: var(--ink); box-shadow: 0 30px 90px rgba(0,0,0,.27); }
     dialog::backdrop { background: rgba(19, 31, 24, .44); backdrop-filter: blur(3px); }
     .dialog-body { padding: 25px; max-height: 85vh; overflow-y: auto; }
@@ -157,6 +161,7 @@
 
     <div class="topbar">
       <h2>Steps & actions</h2>
+      <button class="button secondary" id="menuToggle" type="button" aria-label="Open menu">☰</button>
       <div class="actions">
         <button class="button secondary" id="planLibrary" type="button">My plans</button>
         <button class="button secondary" id="dataSettings" type="button">Data connection</button>
@@ -168,6 +173,7 @@
     <p class="hint">Use the arrows to move a step one position at a time. Tap ✎ to edit; changes stay locked until then.</p>
     <div class="actions" style="justify-content:center; margin-top:22px"><button class="button secondary" id="deletePlanner" type="button">Delete this planner</button></div>
   </main>
+  <aside id="sideMenu" class="side-menu" aria-label="Planner menu"><div class="side-menu-head"><strong>Меню</strong><button id="menuClose" type="button">×</button></div><div id="sideMenuActions" class="side-menu-actions"></div></aside>
 
   <dialog id="planDialog">
     <form method="dialog" class="dialog-body" id="planForm">
@@ -700,6 +706,9 @@
       const parentData = data;
       const planId = await createNewPlanner({ type: 'plan', parentGoalId: goal.id });
       if (planId) {
+        const childConfig = getConnection();
+        data.parentGoalPlanId = parentData.id;
+        await pushRemotePlan(childConfig);
         goal.plans = goal.plans || [];
         goal.plans.push(planId);
         const config = getConnection();
@@ -735,7 +744,8 @@
         const sub = document.createElement('button'); sub.textContent = '+ Создать подцель'; sub.addEventListener('click', () => createSubGoal(goal)); actions.append(sub);
         const planButton = document.createElement('button'); planButton.textContent = '+ Создать план'; planButton.addEventListener('click', () => createGoalPlan(goal)); actions.append(planButton);
         const complete = document.createElement('button'); complete.textContent = goal.completedAt ? '↩ Отменить выполнение' : '✓ Отметить выполненной'; complete.addEventListener('click', () => { goal.completedAt = goal.completedAt ? '' : new Date().toISOString(); save(); render(); }); actions.append(complete);
-        card.append(actions);
+        const menu = document.createElement('details'); menu.className = 'goal-more'; menu.innerHTML = '<summary aria-label="Goal actions">⋯</summary>';
+        menu.append(actions); card.append(menu);
         const children = document.createElement('div'); children.className = 'goal-children';
         if (goal.subGoals.length) children.append(renderGoalTree(goal.subGoals, depth + 1));
         (goal.plans || []).forEach(planId => { const d = document.createElement('details'); d.innerHTML = '<summary>Раскрыть план действий</summary>'; const host = document.createElement('div'); d.append(host); d.addEventListener('toggle', () => { if (d.open && !host.childElementCount) renderGoalPlanPreview(planId, host); }); children.append(d); });
@@ -751,8 +761,26 @@
       const rootActions = document.createElement('div'); rootActions.className = 'goal-actions';
       const sub = document.createElement('button'); sub.textContent = '+ Создать подцель'; sub.addEventListener('click', () => createSubGoal(data)); rootActions.append(sub);
       const planButton = document.createElement('button'); planButton.textContent = '+ Создать план'; planButton.addEventListener('click', () => createGoalPlan(data)); rootActions.append(planButton);
-      plan.append(rootActions);
+      const rootMenu = document.createElement('details'); rootMenu.className = 'goal-more'; rootMenu.innerHTML = '<summary aria-label="Goal actions">⋯</summary>'; rootMenu.append(rootActions);
+      plan.append(rootMenu);
       if (data.subGoals.length) plan.append(renderGoalTree(data.subGoals));
+    }
+    async function findParentGoalPlan() {
+      if (data?.parentGoalPlanId) return data.parentGoalPlanId;
+      const config = getConnection(); if (!config?.token || !data?.parentGoalId) return null;
+      const { index } = await getPlanIndex(config);
+      for (const item of (index.plans || []).filter(p => p.type === 'life-goal')) {
+        const root = await fetchRemotePlan({ ...config, planId: item.id }, false);
+        const walk = goals => (goals || []).some(g => g.id === data.parentGoalId && (g.plans || []).includes(data.id) || walk(g.subGoals));
+        if (walk(root.subGoals)) return item.id;
+      }
+      return null;
+    }
+    function setupSidebar() {
+      const side = $('#sideMenuActions');
+      ['planLibrary','dataSettings','editPlan','addStep','deletePlanner'].forEach(id => { const el = $('#'+id); if (el) side.append(el); });
+      $('#menuToggle').addEventListener('click', () => $('#sideMenu').classList.add('open'));
+      $('#menuClose').addEventListener('click', () => $('#sideMenu').classList.remove('open'));
     }
     function renderEmptyPlanner() {
       plan.innerHTML = '<div class="empty"><p>No plan is open.</p><button class="button primary" id="createFirstPlan" type="button">Creat a plan</button></div>';
@@ -770,7 +798,12 @@
       document.body.classList.toggle('plan-mode', data.type !== 'life-goal');
       $('.topbar h2').textContent = data.type === 'life-goal' ? 'Sub Goals' : 'Steps & actions';
       if (data.type === 'life-goal') { renderLifeGoal(); return; }
-      if (!data.steps.length) { plan.innerHTML = '<div class="empty">No actions yet. Add the first smallest step.</div>'; return; }
+      if (data.parentGoalId) {
+        const back = document.createElement('button'); back.className = 'button secondary'; back.textContent = '← Вернуться к цели';
+        back.addEventListener('click', async () => { const parent = await findParentGoalPlan(); if (parent) openPlan(parent); else alert('Родительская цель не найдена. Откройте её из «Мои планы».'); });
+        plan.append(back);
+      }
+      if (!data.steps.length) { plan.innerHTML += '<div class="empty">No actions yet. Add the first smallest step.</div>'; return; }
       data.steps.forEach(step => plan.append(makeCard(step)));
     }
     function buildGeminiPrompt(step) {
@@ -791,6 +824,7 @@
       textarea.remove();
       if (!copied && navigator.clipboard?.writeText) navigator.clipboard.writeText(prompt).catch(() => {});
     }
+    setupSidebar();
     $('#addStep').addEventListener('click', () => { const step = { id: crypto.randomUUID(), title: 'New action', description: 'Describe the next concrete action.', due: '', completed: false, subPlanId: null }; data.steps.push(step); save(); render(); requestAnimationFrame(() => { const card = plan.lastElementChild; if (card) setEditing(card, true); }); });
     $('#editPlan').addEventListener('click', () => { $('#typeInput').value = data.type || 'plan'; $('#goalInput').value=data.goal; $('#imageInput').value=data.image; $('#accentInput').value=data.accent; $('#inkInput').value=data.ink; $('#canvasInput').value=data.canvas; dialog.showModal(); });
     $('#cancelDialog').addEventListener('click', () => dialog.close());
