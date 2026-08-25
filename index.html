@@ -15,7 +15,11 @@
       --accent: #7f9b8b;
       --accent-ink: #18372c;
       --hero-image: url("https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=1800&q=80");
-      --shadow: 0 18px 45px rgba(27, 39, 32, .12);
+      --tg-bg: #17212b;
+      --tg-surface: #242f3d;
+      --tg-blue: #2ea6ff;
+      --tg-text: #f4f7fb;
+      --tg-muted: #8fa3b8;
     }
     * { box-sizing: border-box; }
     body { margin: 0; min-width: 320px; background: #0b1713; color: #e7eee9; font: 16px/1.45 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
@@ -101,7 +105,8 @@
     .goal-plan-preview a { color: #496258; font-weight: 700; }
     .goal-date { font: inherit; color: #fff1bd; background: transparent; border: 0; border-bottom: 1px solid #c9a14b; }
     .plan-mode .topbar h2 { color: #4b5750; }
-    .side-menu { position: fixed; inset: 0 auto 0 0; z-index: 20; width: min(310px, 84vw); padding: 20px; background: #102820; color: #fff8df; box-shadow: 18px 0 50px rgba(0,0,0,.25); transform: translateX(-105%); transition: transform .2s; }
+    .telegram-header{min-height:160px;border-radius:0}.telegram-header .hero-content{padding:22px}.telegram-header h1{font-family:ui-sans-serif,system-ui;font-size:30px;letter-spacing:-.02em}.telegram-header::after{background:linear-gradient(180deg,rgba(23,33,43,.1),rgba(23,33,43,.94))}.telegram-header .eyebrow{color:var(--tg-blue)}body{background:var(--tg-bg);color:var(--tg-text)}.topbar{background:var(--tg-surface);padding:10px 12px;margin:0;border-radius:0}.topbar h2{color:var(--tg-text)!important;font-size:15px}.plan{gap:2px;background:var(--tg-surface)}.step{border:0;border-bottom:1px solid #314151;border-radius:0;background:var(--tg-surface);color:var(--tg-text);min-height:88px}.step .description,.due-wrap,.complete-control{color:var(--tg-muted)}.step-title{font-size:16px}.button,.subplan-btn{border-radius:7px}.side-menu{background:var(--tg-surface)}
+    .side-menu{position:fixed;inset:0 auto 0 0;z-index:20;width:min(310px,84vw);padding:20px;color:#fff;box-shadow:18px 0 50px rgba(0,0,0,.25);transform:translateX(-105%);transition:transform .2s;background:var(--tg-surface)}
     .side-menu.open { transform: translateX(0); }
     .side-menu-head { display:flex; justify-content:space-between; font-size:18px; margin-bottom:18px; }.side-menu-head button{background:none;border:0;color:#fff8df;font-size:28px}.side-menu-actions{display:grid;gap:10px}.side-menu-actions button{width:100%;text-align:left}
     .goal-more { display:inline-block; position:relative; }.goal-more summary{list-style:none;font-size:20px;padding:5px 11px}.goal-more summary::-webkit-details-marker{display:none}.goal-more[open] .goal-actions{position:absolute;right:0;z-index:4;min-width:210px;padding:8px;background:#16382c;border:1px solid #c9a14b;border-radius:10px}.goal-more .goal-actions button{width:100%;text-align:left}
@@ -150,7 +155,7 @@
 </head>
 <body>
   <main class="page">
-    <section class="hero" aria-label="Plan header">
+    <section class="hero telegram-header" aria-label="Plan header">
       <div class="hero-content">
         <nav id="breadcrumbs" class="breadcrumbs" aria-label="Breadcrumb"></nav>
         <p class="eyebrow" id="planEyebrow">Kupalsa Planner</p>
@@ -754,6 +759,10 @@
       });
       return tree;
     }
+    function renderLifeGoalStages() {
+      const label=document.createElement('p'); label.className='goal-section-title'; label.textContent='Этапы'; plan.append(label);
+      (data.steps || []).forEach(step => plan.append(makeCard(step)));
+    }
     function renderLifeGoal() {
       const title = document.createElement('p'); title.className = 'goal-section-title'; title.textContent = `Сфера: ${data.domain || 'Мои жизненные цели'} · Sub Goals`;
       plan.append(title);
@@ -793,11 +802,11 @@
       plan.replaceChildren();
       if (!data) { renderEmptyPlanner(); return; }
       $('#editPlan').hidden = false;
-      $('#addStep').hidden = data.type === 'life-goal';
+      $('#addStep').hidden = false;
       $('#deletePlanner').hidden = false;
       document.body.classList.toggle('plan-mode', data.type !== 'life-goal');
-      $('.topbar h2').textContent = data.type === 'life-goal' ? 'Sub Goals' : 'Steps & actions';
-      if (data.type === 'life-goal') { renderLifeGoal(); return; }
+      $('.topbar h2').textContent = data.type === 'life-goal' ? 'Этапы' : 'Steps & actions';
+      if (data.type === 'life-goal') { renderLifeGoalStages(); return; }
       if (data.parentGoalId) {
         const back = document.createElement('button'); back.className = 'button secondary'; back.textContent = '← Вернуться к цели';
         back.addEventListener('click', async () => { const parent = await findParentGoalPlan(); if (parent) openPlan(parent); else alert('Родительская цель не найдена. Откройте её из «Мои планы».'); });
