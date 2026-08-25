@@ -302,6 +302,21 @@
       data.subGoals = Array.isArray(data.subGoals) ? data.subGoals : [];
       data.subGoals.forEach(normalizeGoalTree);
     }
+    function normalizeLoadedPlan(planData) {
+      if (planData?.type === 'life-goal') {
+        planData.domain = planData.domain || 'Мои жизненные цели';
+        planData.subGoals = Array.isArray(planData.subGoals) ? planData.subGoals : [];
+        planData.subGoals.forEach(normalizeGoalTree);
+      }
+      return planData;
+    }
+    function canCreateTopGoal(index, domain) {
+      return !(index.plans || []).some(item => item.type === 'life-goal' && (item.domain || 'Мои жизненные цели') === domain);
+    }
+    function makeStandalonePlanPatch() { return { parentId: null, parentStepId: null, parentGoalId: null, type: 'plan' }; }
+    function hasPlanDescendants(index, planId) {
+      return (index.plans || []).some(item => item.parentId === planId);
+    }
     const $ = s => document.querySelector(s);
     const plan = $('#plan'); const template = $('#stepTemplate'); const dialog = $('#planDialog'); const dataDialog = $('#dataDialog'); const libraryDialog = $('#libraryDialog');
     const formatDate = iso => new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(iso));
@@ -355,6 +370,7 @@
       if (!config?.token || !config?.planId) { applyTheme(); render(); return; }
       try {
         data = await fetchRemotePlan(config);
+        normalizeLoadedPlan(data);
         localStorage.setItem(key, JSON.stringify(data));
         applyTheme();
         render();
@@ -442,7 +458,10 @@
         next.parentId = parentId;
         next.parentStepId = parentStepId;
         next.parentGoalId = parentGoalId;
-        if (type === 'life-goal') next.domain = prompt(`Life domain (${defaultDomains.join(', ')})`, defaultDomains[0]) || defaultDomains[0];
+        if (type === 'life-goal') {
+          next.domain = prompt(`Life domain (${defaultDomains.join(', ')})`, defaultDomains[0]) || defaultDomains[0];
+          if (!canCreateTopGoal(index, next.domain)) { alert(`В сфере «${next.domain}» уже есть главная цель. Добавьте подцель внутри неё.`); return null; }
+        }
         next.subGoals = [];
         next.goal = title.trim();
         next.image = data?.image || newPlanDefaults.image;
@@ -513,7 +532,9 @@
           const btn = document.createElement('button');
           btn.className = `tree-item ${level > 0 ? `level-${Math.min(level, 3)}` : ''} ${item.id === currentId ? 'active' : ''}`;
           btn.type = 'button';
-          btn.innerHTML = `<span>${level > 0 ? '↳ ' : '🌟 '}<strong>${item.title}</strong></span><span class="tree-badge">${item.type || 'plan'}</span>`;
+          const label = document.createElement('span'); label.textContent = `${level > 0 ? '↳ ' : '🌟 '}${item.title}`;
+          const badge = document.createElement('span'); badge.className = 'tree-badge'; badge.textContent = item.type || 'plan';
+          btn.append(label, badge);
           btn.addEventListener('click', () => openPlan(item.id));
           lifeList.append(btn);
           const children = childrenMap.get(item.id) || [];
@@ -553,6 +574,8 @@
       if (!confirm(`Delete “${data.goal}”? This permanently removes its private plan data.`)) return;
       try {
         const { sha, index } = await getPlanIndex(config);
+        // Block deletion when this action plan still owns nested child action plans.
+        if (hasPlanDescendants(index, config.planId)) return alert('Нельзя удалить этот план, пока у него есть вложенные планы. Сначала перенесите или удалите потомки.');
         const file = await githubRequest(config, planPath(config));
         await githubRequest(config, planPath(config), { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: `Delete ${config.planId} plan`, sha: file.sha }) });
         index.plans = index.plans.filter(entry => entry.id !== config.planId);
