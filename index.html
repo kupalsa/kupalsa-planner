@@ -675,7 +675,7 @@
     }
     async function createGoalPlan(goal) {
       const parentData = data;
-      const planId = await createNewPlanner({ type: 'plan', parentGoalId: goal.id, titlePrompt: goal.title });
+      const planId = await createNewPlanner({ type: 'plan', parentGoalId: goal.id });
       if (planId) {
         goal.plans = goal.plans || [];
         goal.plans.push(planId);
