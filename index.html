@@ -107,7 +107,8 @@
     .plan-mode .topbar h2 { color: #4b5750; }
     .telegram-header{min-height:160px;border-radius:0}.telegram-header .hero-content{padding:22px}.telegram-header h1{font-family:ui-sans-serif,system-ui;font-size:30px;letter-spacing:-.02em}.telegram-header::after{background:linear-gradient(180deg,rgba(23,33,43,.1),rgba(23,33,43,.94))}.telegram-header .eyebrow{color:var(--tg-blue)}body{background:var(--tg-bg);color:var(--tg-text)}.topbar{background:var(--tg-surface);padding:10px 12px;margin:0;border-radius:0}.topbar h2{color:var(--tg-text)!important;font-size:15px}.plan{gap:2px;background:var(--tg-surface)}.step{border:0;border-bottom:1px solid #314151;border-radius:0;background:var(--tg-surface);color:var(--tg-text);min-height:88px}.step .description,.due-wrap,.complete-control{color:var(--tg-muted)}.step-title{font-size:16px}.button,.subplan-btn{border-radius:7px}.side-menu{background:var(--tg-surface)}
     .side-menu{position:fixed;inset:0 auto 0 0;z-index:20;width:min(310px,84vw);padding:20px;color:#fff;box-shadow:18px 0 50px rgba(0,0,0,.25);transform:translateX(-105%);transition:transform .2s;background:var(--tg-surface)}
-    .side-menu.open { transform: translateX(0); }
+    .side-menu.open{transform:translateX(0)}
+    .step{box-shadow: 0 5px 14px rgba(0,0,0,.18)!important;margin:4px 8px!important}.button.secondary{color:#f5f7fb!important;border-color:#4d6380!important;background:#2a3a4b!important}.button.primary{background:#2ea6ff!important;color:#071521!important}.step-more{margin-left:auto;position:relative}.step-more summary{list-style:none;font-size:22px;color:#f5f7fb;padding:3px 8px}.step-more summary::-webkit-details-marker{display:none}.step-more[open] .step-actions{position:absolute;right:0;z-index:5;display:grid;padding:8px;background:#2a3a4b;border:1px solid #4d6380;box-shadow:0 8px 20px rgba(0,0,0,.3)}
     .side-menu-head { display:flex; justify-content:space-between; font-size:18px; margin-bottom:18px; }.side-menu-head button{background:none;border:0;color:#fff8df;font-size:28px}.side-menu-actions{display:grid;gap:10px}.side-menu-actions button{width:100%;text-align:left}
     .goal-more { display:inline-block; position:relative; }.goal-more summary{list-style:none;font-size:20px;padding:5px 11px}.goal-more summary::-webkit-details-marker{display:none}.goal-more[open] .goal-actions{position:absolute;right:0;z-index:4;min-width:210px;padding:8px;background:#16382c;border:1px solid #c9a14b;border-radius:10px}.goal-more .goal-actions button{width:100%;text-align:left}
     dialog { width: min(680px, calc(100% - 28px)); border: 0; border-radius: 18px; padding: 0; color: var(--ink); box-shadow: 0 30px 90px rgba(0,0,0,.27); }
@@ -646,6 +647,17 @@
       [data.steps[from], data.steps[to]] = [data.steps[to], data.steps[from]]; save(); render();
       requestAnimationFrame(() => plan.querySelector(`[data-id="${stepId}"] .move-control`)?.focus());
     }
+    async function createStepPlan(step) {
+      const parentData = data;
+      const parentConfig = getConnection();
+      const newPlanId = await createNewPlanner({ type: 'sub-plan', parentId: parentData.id, parentStepId: step.id, titlePrompt: step.title });
+      if (!newPlanId) return;
+      step.subPlanId = newPlanId;
+      data = parentData; parentConfig.planId = parentData.id; remoteSha = null;
+      localStorage.setItem(connectionKey, JSON.stringify(parentConfig));
+      await pushRemotePlan(parentConfig);
+      localStorage.setItem(key, JSON.stringify(data)); applyTheme(); render();
+    }
     function makeCard(step) {
       const card = template.content.firstElementChild.cloneNode(true);
       card.dataset.id = step.id;
@@ -674,18 +686,7 @@
         subplanBtn.classList.remove('has-subplan');
         subplanLabel.textContent = '+ План';
         subplanBtn.title = 'Create a new sub-plan for this action';
-        subplanBtn.addEventListener('click', async () => {
-          const newPlanId = await createNewPlanner({
-            type: 'sub-plan',
-            parentId: data.id,
-            parentStepId: step.id,
-            titlePrompt: step.title
-          });
-          if (newPlanId) {
-            step.subPlanId = newPlanId;
-            save();
-          }
-        });
+        subplanBtn.addEventListener('click', () => createStepPlan(step));
       }
 
       card.querySelector('.delete').addEventListener('click', () => {
@@ -699,6 +700,9 @@
       const index = data.steps.findIndex(item => item.id === step.id); const up = card.querySelector('.move-up'); const down = card.querySelector('.move-down');
       up.disabled = index === 0; down.disabled = index === data.steps.length - 1;
       up.addEventListener('click', () => moveStep(step.id, -1)); down.addEventListener('click', () => moveStep(step.id, 1));
+      const actionGroup = card.querySelector('.step-actions');
+      const stepMenu = document.createElement('details'); stepMenu.className = 'step-more'; stepMenu.innerHTML = '<summary aria-label="Step actions">⋯</summary>';
+      actionGroup.parentNode.replaceChild(stepMenu, actionGroup); stepMenu.append(actionGroup);
       return card;
     }
     function createSubGoal(parent) {
