@@ -658,6 +658,11 @@
       await pushRemotePlan(parentConfig);
       localStorage.setItem(key, JSON.stringify(data)); applyTheme(); render();
     }
+    async function toggleInlineStepPlan(step, card) {
+      const existing=card.querySelector('.inline-plan'); if(existing){existing.remove();return;}
+      const host=document.createElement('div');host.className='inline-plan goal-plan-preview';host.textContent='Загрузка плана…';card.append(host);
+      await renderGoalPlanPreview(step.subPlanId,host);
+    }
     function makeCard(step) {
       const card = template.content.firstElementChild.cloneNode(true);
       card.dataset.id = step.id;
@@ -678,13 +683,12 @@
       const subplanLabel = subplanBtn.querySelector('.subplan-label');
       if (step.subPlanId) {
         subplanBtn.classList.add('has-subplan');
-        const childEntry = cachedIndex?.plans?.find(p => p.id === step.subPlanId);
-        subplanLabel.textContent = childEntry ? `📂 ${childEntry.title}` : '📂 Открыть план';
-        subplanBtn.title = 'Open attached sub-plan';
-        subplanBtn.addEventListener('click', () => openPlan(step.subPlanId));
+        subplanBtn.textContent = 'План';
+        subplanBtn.title = 'Раскрыть план под этапом';
+        subplanBtn.addEventListener('click', () => toggleInlineStepPlan(step, card));
       } else {
         subplanBtn.classList.remove('has-subplan');
-        subplanLabel.textContent = '+ План';
+        subplanBtn.textContent = 'Создать план';
         subplanBtn.title = 'Create a new sub-plan for this action';
         subplanBtn.addEventListener('click', () => createStepPlan(step));
       }
@@ -701,6 +705,8 @@
       up.disabled = index === 0; down.disabled = index === data.steps.length - 1;
       up.addEventListener('click', () => moveStep(step.id, -1)); down.addEventListener('click', () => moveStep(step.id, 1));
       const actionGroup = card.querySelector('.step-actions');
+      const directPlan = card.querySelector('.subplan-btn');
+      card.querySelector('.meta').insertBefore(directPlan, actionGroup);
       const stepMenu = document.createElement('details'); stepMenu.className = 'step-more'; stepMenu.innerHTML = '<summary aria-label="Step actions">⋯</summary>';
       actionGroup.parentNode.replaceChild(stepMenu, actionGroup); stepMenu.append(actionGroup);
       return card;
