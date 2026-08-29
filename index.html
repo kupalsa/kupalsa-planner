@@ -109,7 +109,8 @@
     .side-menu{position:fixed;inset:0 auto 0 0;z-index:20;width:min(310px,84vw);padding:20px;color:#fff;box-shadow:18px 0 50px rgba(0,0,0,.25);transform:translateX(-105%);transition:transform .2s;background:var(--tg-surface)}
     .side-menu.open{transform:translateX(0)}
     .step{box-shadow: 0 5px 14px rgba(0,0,0,.18)!important;margin:4px 8px!important}.button.secondary{color:#f5f7fb!important;border-color:#4d6380!important;background:#2a3a4b!important}.button.primary{background:#2ea6ff!important;color:#071521!important}.step-more{margin-left:auto;position:relative}.step-more summary{list-style:none;font-size:22px;color:#f5f7fb;padding:3px 8px}.step-more summary::-webkit-details-marker{display:none}.step-more[open] .step-actions{position:absolute;right:0;z-index:5;display:grid;padding:8px;background:#2a3a4b;border:1px solid #4d6380;box-shadow:0 8px 20px rgba(0,0,0,.3)}
-    .side-menu-head { display:flex; justify-content:space-between; font-size:18px; margin-bottom:18px; }.side-menu-head button{background:none;border:0;color:#fff8df;font-size:28px}.side-menu-actions{display:grid;gap:10px}.side-menu-actions button{width:100%;text-align:left}
+    .side-menu-head{display:flex;justify-content:space-between;font-size:18px;margin-bottom:18px}.side-menu-head button{background:none;border:0;color:#f5f7fb;font-size:28px}.side-menu-actions{display:grid;gap:10px}.side-menu-actions button{width:100%;text-align:left}
+    .inline-plan{margin:12px 0 0!important;background:#263746!important;color:#f5f7fb!important;border:1px solid #405368!important;box-shadow:0 5px 14px rgba(0,0,0,.16)!important}.inline-plan h4{color:#f5f7fb!important}.inline-plan ul{color:#b9c8d8!important}.inline-plan a{color:#6bb8f7!important}.step-more[open]{z-index:9}.step-more .step-actions .gemini,.step-more .step-actions .edit,.step-more .step-actions .delete{width:100%!important;justify-content:flex-start!important}.complete-box{border-color:#6f859c!important;background:#263746!important}.step.completed{background:#223b37!important}.step.completed .step-title{color:#d6eadc!important}
     .goal-more { display:inline-block; position:relative; }.goal-more summary{list-style:none;font-size:20px;padding:5px 11px}.goal-more summary::-webkit-details-marker{display:none}.goal-more[open] .goal-actions{position:absolute;right:0;z-index:4;min-width:210px;padding:8px;background:#16382c;border:1px solid #c9a14b;border-radius:10px}.goal-more .goal-actions button{width:100%;text-align:left}
     dialog { width: min(680px, calc(100% - 28px)); border: 0; border-radius: 18px; padding: 0; color: var(--ink); box-shadow: 0 30px 90px rgba(0,0,0,.27); }
     dialog::backdrop { background: rgba(19, 31, 24, .44); backdrop-filter: blur(3px); }
@@ -745,7 +746,11 @@
         const clone = { ...config, planId };
         const child = await fetchRemotePlan(clone, false);
         const preview = document.createElement('div'); preview.className = 'goal-plan-preview';
-        preview.innerHTML = `<h4>План действий</h4><ul>${(child.steps || []).slice(0, 5).map(s => `<li>${s.title}</li>`).join('') || '<li>В этом плане пока нет шагов.</li>'}</ul>`;
+        const heading = document.createElement('h4'); heading.textContent = 'План действий'; preview.append(heading);
+        const list = document.createElement('ul'); const shown = (child.steps || []).slice(0, 5);
+        if (!shown.length) { const li=document.createElement('li');li.textContent='В этом плане пока нет шагов.';list.append(li); }
+        shown.forEach(s => { const li=document.createElement('li');li.textContent=s.title;list.append(li); });
+        preview.append(list);
         const open = document.createElement('a'); open.href = '#'; open.textContent = 'Открыть полный план'; open.addEventListener('click', e => { e.preventDefault(); openPlan(planId); });
         preview.append(open); host.replaceChildren(preview);
       } catch { host.textContent = 'План создан. Нажмите, чтобы открыть его из библиотеки.'; }
